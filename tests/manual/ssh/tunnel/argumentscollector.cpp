@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2012 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: http://www.qt-project.org/
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -25,10 +25,14 @@
 ** Alternatively, this file may be used in accordance with the terms and
 ** conditions contained in a signed written agreement between you and Nokia.
 **
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
-
 #include "argumentscollector.h"
+
+#include <QDir>
+#include <QProcessEnvironment>
 
 #include <iostream>
 
@@ -41,68 +45,69 @@ ArgumentsCollector::ArgumentsCollector(const QStringList &args)
 {
 }
 
-Parameters ArgumentsCollector::collect(bool &success) const
+QSsh::SshConnectionParameters ArgumentsCollector::collect(bool &success) const
 {
-    Parameters parameters;
-    parameters.sshParams.options &= ~SshIgnoreDefaultProxy;
+    SshConnectionParameters parameters;
+    parameters.host = QLatin1String("localhost");
+
     try {
         bool authTypeGiven = false;
         bool portGiven = false;
         bool timeoutGiven = false;
-        bool smallFileCountGiven = false;
-        bool bigFileSizeGiven = false;
         bool proxySettingGiven = false;
         int pos;
         int port;
+
         for (pos = 1; pos < m_arguments.count() - 1; ++pos) {
-            if (checkAndSetStringArg(pos, parameters.sshParams.host, "-h")
-                || checkAndSetStringArg(pos, parameters.sshParams.userName, "-u"))
+            if (checkAndSetStringArg(pos, parameters.userName, "-u"))
                 continue;
             if (checkAndSetIntArg(pos, port, portGiven, "-p")
-                || checkAndSetIntArg(pos, parameters.sshParams.timeout, timeoutGiven, "-t")
-                || checkAndSetIntArg(pos, parameters.smallFileCount, smallFileCountGiven, "-c")
-                || checkAndSetIntArg(pos, parameters.bigFileSize, bigFileSizeGiven, "-s"))
+                || checkAndSetIntArg(pos, parameters.timeout, timeoutGiven, "-t"))
                 continue;
-            if (checkAndSetStringArg(pos, parameters.sshParams.password, "-pwd")) {
-                if (!parameters.sshParams.privateKeyFile.isEmpty())
+            if (checkAndSetStringArg(pos, parameters.password, "-pwd")) {
+                if (!parameters.privateKeyFile.isEmpty())
                     throw ArgumentErrorException(QLatin1String("-pwd and -k are mutually exclusive."));
-                parameters.sshParams.authenticationType
+                parameters.authenticationType
                     = SshConnectionParameters::AuthenticationByPassword;
                 authTypeGiven = true;
                 continue;
             }
-            if (checkAndSetStringArg(pos, parameters.sshParams.privateKeyFile, "-k")) {
-                if (!parameters.sshParams.password.isEmpty())
+            if (checkAndSetStringArg(pos, parameters.privateKeyFile, "-k")) {
+                if (!parameters.password.isEmpty())
                     throw ArgumentErrorException(QLatin1String("-pwd and -k are mutually exclusive."));
-                parameters.sshParams.authenticationType
+                parameters.authenticationType
                     = SshConnectionParameters::AuthenticationByKey;
                 authTypeGiven = true;
                 continue;
             }
-            if (!checkForNoProxy(pos, parameters.sshParams.options, proxySettingGiven))
+            if (!checkForNoProxy(pos, parameters.proxyType, proxySettingGiven))
                 throw ArgumentErrorException(QLatin1String("unknown option ") + m_arguments.at(pos));
         }
 
         Q_ASSERT(pos <= m_arguments.count());
         if (pos == m_arguments.count() - 1) {
-            if (!checkForNoProxy(pos, parameters.sshParams.options, proxySettingGiven))
+            if (!checkForNoProxy(pos, parameters.proxyType, proxySettingGiven))
                 throw ArgumentErrorException(QLatin1String("unknown option ") + m_arguments.at(pos));
         }
 
-        if (!authTypeGiven)
-            throw ArgumentErrorException(QLatin1String("No authentication argument given."));
-        if (parameters.sshParams.host.isEmpty())
-            throw ArgumentErrorException(QLatin1String("No host given."));
-        if (parameters.sshParams.userName.isEmpty())
+        if (!authTypeGiven) {
+            parameters.authenticationType = SshConnectionParameters::AuthenticationByKey;
+            parameters.privateKeyFile = QDir::homePath() + QLatin1String("/.ssh/id_rsa");
+        }
+
+        if (parameters.userName.isEmpty()) {
+            parameters.userName
+                = QProcessEnvironment::systemEnvironment().value(QLatin1String("USER"));
+        }
+        if (parameters.userName.isEmpty())
             throw ArgumentErrorException(QLatin1String("No user name given."));
 
-        parameters.sshParams.port = portGiven ? port : 22;
+        if (parameters.host.isEmpty())
+            throw ArgumentErrorException(QLatin1String("No host given."));
+
+        parameters.port = portGiven ? port : 22;
         if (!timeoutGiven)
-            parameters.sshParams.timeout = 30;
-        if (!smallFileCountGiven)
-            parameters.smallFileCount = 1000;
-        if (!bigFileSizeGiven)
-            parameters.bigFileSize = 1024;
+            parameters.timeout = 30;
         success = true;
     } catch (ArgumentErrorException &ex) {
         cerr << "Error: " << qPrintable(ex.error) << endl;
@@ -115,10 +120,9 @@ Parameters ArgumentsCollector::collect(bool &success) const
 void ArgumentsCollector::printUsage() const
 {
     cerr << "Usage: " << qPrintable(m_arguments.first())
-        << " -h <host> -u <user> "
-        << "-pwd <password> | -k <private key file> [ -p <port> ] "
-        << "[ -t <timeout> ] [ -c <small file count> ] "
-        << "[ -s <big file size in MB> ] [ -no-proxy ]" << endl;
+        << "[ -u <user> ] "
+        << "[ -pwd <password> | -k <private key file> ] [ -p <port> ] "
+        << "[ -t <timeout> ] [ -no-proxy ]" << endl;
 }
 
 bool ArgumentsCollector::checkAndSetStringArg(int &pos, QString &arg, const char *opt) const
@@ -156,13 +160,13 @@ bool ArgumentsCollector::checkAndSetIntArg(int &pos, int &val,
     return false;
 }
 
-bool ArgumentsCollector::checkForNoProxy(int &pos, SshConnectionOptions &options,
-                                         bool &alreadyGiven) const
+bool ArgumentsCollector::checkForNoProxy(int &pos,
+    SshConnectionParameters::ProxyType &type, bool &alreadyGiven) const
 {
     if (m_arguments.at(pos) == QLatin1String("-no-proxy")) {
         if (alreadyGiven)
             throw ArgumentErrorException(QLatin1String("proxy setting given twice."));
-        options |= SshIgnoreDefaultProxy;
+        type = SshConnectionParameters::NoProxy;
         alreadyGiven = true;
         return true;
     }
