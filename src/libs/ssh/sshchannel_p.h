@@ -74,6 +74,7 @@ public:
     virtual ~AbstractSshChannel();
 
     static const int ReplyTimeout = 10000; // milli seconds
+    ChannelState channelState() const { return m_state; }
 
 signals:
     void timeout();
@@ -83,7 +84,6 @@ protected:
     AbstractSshChannel(quint32 channelId, SshSendFacility &sendFacility);
 
     void setChannelState(ChannelState state);
-    ChannelState channelState() const { return m_state; }
 
     void requestSessionStart();
     void sendData(const QByteArray &data);
