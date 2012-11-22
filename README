@@ -1,5 +1,5 @@
 
-SSH and SFTP support for Qt. This project based on Qt Creator's libQtcSsh.so
+SSH and SFTP support for Qt. This project is based on Qt Creator's libQtcSsh.so
 
 Compiling QSsh
 ==============
