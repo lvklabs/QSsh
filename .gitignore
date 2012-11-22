@@ -1,0 +1,154 @@
+# This file is used to ignore files which are generated
+# ----------------------------------------------------------------------------
+
+*~
+*.autosave
+*.a
+*.core
+*.moc
+*.o
+*.obj
+*.orig
+*.rej
+*.so
+*_pch.h.cpp
+*_resource.rc
+*.qm
+.#*
+*.*#
+core
+!core/
+tags
+.DS_Store
+*.debug
+Makefile*
+*.prl
+*.app
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+Thumbs.db
+
+# qtcreator generated files
+*.pro.user*
+*.qmlproject.user*
+*.pluginspec
+src/app/Info.plist
+app_version.h
+src/plugins/coreplugin/ide_version.h
+share/qtcreator/externaltools
+phony.c
+
+# xemacs temporary files
+*.flc
+
+# Vim temporary files
+.*.swp
+
+# Visual Studio generated files
+*.ib_pdb_index
+*.idb
+*.ilk
+*.pdb
+*.sln
+*.suo
+*.vcproj
+*vcproj.*.*.user
+*.ncb
+*.sdf
+*.opensdf
+*.vcxproj
+*vcxproj.*
+
+# MinGW generated files
+*.Debug
+*.Release
+
+# translation related:
+share/qtcreator/translations/*_tr.h
+share/qtcreator/translations/qtcreator_untranslated.ts
+
+# Directories to ignore
+# ---------------------
+
+build
+debug
+lib/*
+lib64/*
+release
+doc/html/*
+doc/html-dev/*
+doc/api/html/*
+doc/pluginhowto/html/*
+dist/gdb/python
+.rcc
+.pch
+dist/gdb/qtcreator-*
+dist/gdb/source
+dist/gdb/staging
+ipch
+tmp
+# ignore both a directory as well as a symlink
+share/qtcreator/Nokia/
+share/qtcreator/Nokia
+
+# Binaries
+# --------
+bin/*.dll
+bin/qtcreator
+bin/qtcreator_process_stub*
+bin/qtcreator_ctrlc_stub*
+bin/qtcreator.exe
+bin/qmlpuppet
+bin/qmlpuppet.exe
+bin/qml2puppet
+bin/qml2puppet.exe
+bin/qtpromaker
+bin/qtpromaker.exe
+share/doc/qtcreator/*.qch
+src/tools/gen-cpp-ast/generate-ast
+src/tools/mkvisitor/cplusplus0
+src/tools/qml/qmldump/qmldump
+src/tools/examplesscanner/examplesscanner
+src/tools/valgrindfake/valgrind-fake
+bin/*.exe
+
+# Tests
+#------
+tests/manual/cplusplus-frontend/cplusplus0
+tests/manual/cplusplus-dump/cplusplus0
+tests/manual/qml-ast2dot/qml-ast2dot
+tests/manual/debugger/simple/libsimple_test_plugin.*dylib
+tests/manual/debugger/simple/simple_test_app
+tests/manual/plain-cplusplus/plain-c++
+tests/manual/preprocessor/pp
+tests/auto/cplusplus/codegen/tst_codegen
+tests/auto/cplusplus/ast/tst_ast
+tests/auto/cplusplus/codeformatter/tst_codeformatter
+tests/auto/cplusplus/findusages/tst_findusages
+tests/auto/cplusplus/lookup/tst_lookup
+tests/auto/cplusplus/preprocessor/tst_preprocessor
+tests/auto/cplusplus/semantic/tst_semantic
+tests/auto/cplusplus/typeprettyprinter/tst_typeprettyprinter
+tests/auto/qml/qmldesigner/bauhaustests/tst_bauhaus
+tests/auto/qml/qmldesigner/coretests/tst_qmldesigner_core
+tests/auto/qml/qmldesigner/propertyeditortests/tst_propertyeditor
+tests/auto/profilewriter/tst_profilewriter
+tests/auto/externaltool/tst_externaltool
+tests/valgrind/memcheck/modeldemo
+tests/valgrind/memcheck/parsertests
+tests/valgrind/memcheck/testapps/free1/free1
+tests/valgrind/memcheck/testapps/free2/free2
+tests/valgrind/memcheck/testapps/invalidjump/invalidjump
+tests/valgrind/memcheck/testapps/leak1/leak1
+tests/valgrind/memcheck/testapps/leak2/leak2
+tests/valgrind/memcheck/testapps/leak3/leak3
+tests/valgrind/memcheck/testapps/leak4/leak4
+tests/valgrind/memcheck/testapps/overlap/overlap
+tests/valgrind/memcheck/testapps/syscall/syscall
+tests/valgrind/memcheck/testapps/uninit1/uninit1
+tests/valgrind/memcheck/testapps/uninit2/uninit2
+tests/valgrind/memcheck/testapps/uninit3/uninit3
+tests/valgrind/memcheck/testrunner
+tests/valgrind/callgrind/callgrindparsertests
+tests/valgrind/callgrind/modeltest
