@@ -1,7 +1,11 @@
 TEMPLATE = lib
-TARGET = QtcSsh
-QT += gui network
-DEFINES += QSSH_LIBRARY CREATOR_SSH_DEBUG
+TARGET = QSsh
+QT += network
+DEFINES += QSSH_LIBRARY
+
+#Enable debug log
+DEFINES += CREATOR_SSH_DEBUG
+
 
 include(../../qtcreatorlibrary.pri)
 include(ssh_dependencies.pri)
@@ -28,8 +32,7 @@ SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshremoteprocessrunner.cpp \
     $$PWD/sshconnectionmanager.cpp \
     $$PWD/sshkeypasswordretriever.cpp \
-    $$PWD/sftpfilesystemmodel.cpp \
-    $$PWD/sshkeycreationdialog.cpp
+    $$PWD/sftpfilesystemmodel.cpp
 
 HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sshremoteprocess.h \
@@ -61,7 +64,6 @@ HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sshpseudoterminal.h \
     $$PWD/sshkeypasswordretriever_p.h \
     $$PWD/sftpfilesystemmodel.h \
-    $$PWD/sshkeycreationdialog.h \
     $$PWD/ssh_global.h
 
-FORMS = $$PWD/sshkeycreationdialog.ui
+

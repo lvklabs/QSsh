@@ -1,10 +1,8 @@
-!isEmpty(QTCREATOR_PRI_INCLUDED):error("qtcreator.pri already included")
-QTCREATOR_PRI_INCLUDED = 1
+!isEmpty(QSSH_PRI_INCLUDED):error("qssh.pri already included")
+QSSH_PRI_INCLUDED = 1
 
-QTCREATOR_VERSION = 2.5.83
-
-isEmpty(QTC_PREFIX) {
-    unix:!macx: QTC_PREFIX = /usr/local
+isEmpty(QSSH_PREFIX) {
+    unix:!macx: QSSH_PREFIX = /usr/local
 }
 
 isEqual(QT_MAJOR_VERSION, 5) {
@@ -124,10 +122,7 @@ IDE_APP_PATH = $$IDE_BUILD_TREE/bin
 macx {
     IDE_APP_TARGET   = "Qt Creator"
     IDE_LIBRARY_PATH = $$IDE_APP_PATH/$${IDE_APP_TARGET}.app/Contents/PlugIns
-    IDE_PLUGIN_PATH  = $$IDE_LIBRARY_PATH
     IDE_LIBEXEC_PATH = $$IDE_APP_PATH/$${IDE_APP_TARGET}.app/Contents/Resources
-    IDE_DATA_PATH    = $$IDE_APP_PATH/$${IDE_APP_TARGET}.app/Contents/Resources
-    IDE_DOC_PATH     = $$IDE_DATA_PATH/doc
     IDE_BIN_PATH     = $$IDE_APP_PATH/$${IDE_APP_TARGET}.app/Contents/MacOS
     copydata = 1
     isEmpty(TIGER_COMPAT_MODE):TIGER_COMPAT_MODE=$$(QTC_TIGER_COMPAT)
@@ -138,20 +133,15 @@ macx {
 } else {
     contains(TEMPLATE, vc.*):vcproj = 1
     IDE_APP_TARGET   = qtcreator
-    IDE_LIBRARY_PATH = $$IDE_BUILD_TREE/$$IDE_LIBRARY_BASENAME/qtcreator
-    IDE_PLUGIN_PATH  = $$IDE_LIBRARY_PATH/plugins
+    IDE_LIBRARY_PATH = $$IDE_BUILD_TREE/$$IDE_LIBRARY_BASENAME
     IDE_LIBEXEC_PATH = $$IDE_APP_PATH # FIXME
-    IDE_DATA_PATH    = $$IDE_BUILD_TREE/share/qtcreator
-    IDE_DOC_PATH     = $$IDE_BUILD_TREE/share/doc/qtcreator
     IDE_BIN_PATH     = $$IDE_APP_PATH
     !isEqual(IDE_SOURCE_TREE, $$IDE_BUILD_TREE):copydata = 1
 }
 
 INCLUDEPATH += \
     $$IDE_BUILD_TREE/src \ # for <app/app_version.h>
-    $$IDE_SOURCE_TREE/src/libs \
-    $$IDE_SOURCE_TREE/tools \
-    $$IDE_SOURCE_TREE/src/plugins
+    $$IDE_SOURCE_TREE/src/libs
 
 CONFIG += depend_includepath
 
