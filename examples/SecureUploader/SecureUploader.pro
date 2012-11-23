@@ -18,7 +18,5 @@ SOURCES += \
 HEADERS  += \
     securefileuploader.h
 
-FORMS    += mainwindow.ui
-
 include(../../qssh.pri) ## Required for IDE_LIBRARY_PATH
 LIBS += -L$$IDE_LIBRARY_PATH -lBotan -lQSsh
