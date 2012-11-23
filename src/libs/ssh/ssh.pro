@@ -4,7 +4,7 @@ QT += network
 DEFINES += QSSH_LIBRARY
 
 #Enable debug log
-DEFINES += CREATOR_SSH_DEBUG
+#DEFINES += CREATOR_SSH_DEBUG
 
 
 include(../../qtcreatorlibrary.pri)
