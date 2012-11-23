@@ -1,2 +1,2 @@
 INCLUDEPATH *= $$PWD/..
-LIBS *= -lBotan
+LIBS *= -L$$IDE_LIBRARY_PATH -l$$qtLibraryName(Botan)

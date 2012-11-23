@@ -16,6 +16,7 @@
 ** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 **************************************************************************/
+
 #ifndef SECUREFILEUPLOADER_H
 #define SECUREFILEUPLOADER_H
 
