@@ -10,8 +10,6 @@ SecureFileUploader::SecureFileUploader(QObject *parent) :
 void SecureFileUploader::upload(const QString &localFile, const QString &dest, const QString &host,
                                 const QString &username, const QString &passwd)
 {
-    qDebug() << localFile << dest << host << username << passwd;
-
     m_localFilename = localFile;
     m_remoteFilename = dest + "/" + localFile;
 
@@ -28,15 +26,15 @@ void SecureFileUploader::upload(const QString &localFile, const QString &dest, c
     connect(m_connection, SIGNAL(connected()), SLOT(onConnected()));
     connect(m_connection, SIGNAL(error(QSsh::SshError)), SLOT(onConnectionError(QSsh::SshError)));
 
-    qDebug() << " SecureUploader: Connecting to host" << host;
+    qDebug() << "SecureUploader: Connecting to host" << host;
 
     m_connection->connectToHost();
 }
 
 void SecureFileUploader::onConnected()
 {
-    qDebug() << " SecureUploader: Connected";
-    qDebug() << " SecureUploader: Creating SFTP channel...";
+    qDebug() << "SecureUploader: Connected";
+    qDebug() << "SecureUploader: Creating SFTP channel...";
 
     m_channel = m_connection->createSftpChannel();
 
@@ -51,38 +49,38 @@ void SecureFileUploader::onConnected()
         m_channel->initialize();
 
     } else {
-        qDebug() << " SecureUploader: Error null channel";
+        qDebug() << "SecureUploader: Error null channel";
     }
 }
 
 void SecureFileUploader::onConnectionError(QSsh::SshError err)
 {
-    qDebug() << " SecureUploader: Connection error" << err;
+    qDebug() << "SecureUploader: Connection error" << err;
 }
 
 void SecureFileUploader::onChannelInitialized()
 {
-    qDebug() << " SecureUploader: Channel Initialized";
+    qDebug() << "SecureUploader: Channel Initialized";
 
     // TODO Choose the overwrite mode: SftpOverwriteExisting, SftpAppendToExisting, SftpSkipExisting
     QSsh::SftpJobId job = m_channel->uploadFile(m_localFilename, m_remoteFilename,
                                                 QSsh::SftpOverwriteExisting);
 
     if (job != QSsh::SftpInvalidJob) {
-        qDebug() << " SecureUploader: Starting job #" << job;
+        qDebug() << "SecureUploader: Starting job #" << job;
     } else {
-        qDebug() << " SecureUploader: Invalid Job";
+        qDebug() << "SecureUploader: Invalid Job";
     }
 }
 
 void SecureFileUploader::onChannelError(const QString &err)
 {
-    qDebug() << " SecureUploader: Error: " << err;
+    qDebug() << "SecureUploader: Error: " << err;
 }
 
 void SecureFileUploader::onOpfinished(QSsh::SftpJobId job, const QString &err)
 {
-    qDebug() << " SecureUploader: Finished job #" << job << ":" << (err.isEmpty() ? "OK" : err);
+    qDebug() << "SecureUploader: Finished job #" << job << ":" << (err.isEmpty() ? "OK" : err);
 }
 
 
