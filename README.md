@@ -12,15 +12,14 @@ Qt Creator's team!
 
 Prerequisites:
    * Qt 4.7.4 (May work with older versions)
-   * On Windows:
-     -  MinGW 4.4 or later, Visual Studio 2008 or later
+   * On Windows: MinGW 4.4 or later, Visual Studio 2008 or later
    * On Mac: XCode 2.5 or later, compiling on 10.4 requires setting the
      environment variable QTC_TIGER_COMPAT before running qmake
 
-    $ mkdir $BUILD_DIRECTORY
-    $ cd $BUILD_DIRECTORY
-    $ qmake $SOURCE_DIRECTORY/qssh.pro
-    $ make (or mingw32-make or nmake depending on your platform)
+	$ mkdir $BUILD_DIRECTORY
+	$ cd $BUILD_DIRECTORY
+	$ qmake $SOURCE_DIRECTORY/qssh.pro
+	$ make (or mingw32-make or nmake depending on your platform)
 
 
 ### Examples
