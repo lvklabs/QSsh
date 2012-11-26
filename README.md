@@ -16,11 +16,12 @@ Prerequisites:
    * On Mac: XCode 2.5 or later, compiling on 10.4 requires setting the
      environment variable QTC_TIGER_COMPAT before running qmake
 
+Steps:
 ```bash
-$ mkdir $BUILD_DIRECTORY
-$ cd $BUILD_DIRECTORY
-$ qmake $SOURCE_DIRECTORY/qssh.pro
-$ make (or mingw32-make or nmake depending on your platform)
+mkdir $BUILD_DIRECTORY
+cd $BUILD_DIRECTORY
+qmake $SOURCE_DIRECTORY/qssh.pro
+make (or mingw32-make or nmake depending on your platform)
 ```
 
 ### Examples
