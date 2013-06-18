@@ -69,7 +69,7 @@ QSsh::SshConnectionParameters ArgumentsCollector::collect(bool &success) const
                 if (!parameters.privateKeyFile.isEmpty())
                     throw ArgumentErrorException(QLatin1String("-pwd and -k are mutually exclusive."));
                 parameters.authenticationType
-                    = SshConnectionParameters::AuthenticationByPassword;
+                    = SshConnectionParameters::AuthenticationTypeTryAllPasswordBasedMethods;
                 authTypeGiven = true;
                 continue;
             }
@@ -77,7 +77,7 @@ QSsh::SshConnectionParameters ArgumentsCollector::collect(bool &success) const
                 if (!parameters.password.isEmpty())
                     throw ArgumentErrorException(QLatin1String("-pwd and -k are mutually exclusive."));
                 parameters.authenticationType
-                    = SshConnectionParameters::AuthenticationByKey;
+                    = SshConnectionParameters::AuthenticationTypePublicKey;
                 authTypeGiven = true;
                 continue;
             }
@@ -92,7 +92,7 @@ QSsh::SshConnectionParameters ArgumentsCollector::collect(bool &success) const
         }
 
         if (!authTypeGiven) {
-            parameters.authenticationType = SshConnectionParameters::AuthenticationByKey;
+            parameters.authenticationType = SshConnectionParameters::AuthenticationTypePublicKey;
             parameters.privateKeyFile = QDir::homePath() + QLatin1String("/.ssh/id_rsa");
         }
 

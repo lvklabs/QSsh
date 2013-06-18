@@ -61,7 +61,15 @@ Q_DECLARE_FLAGS(SshConnectionOptions, SshConnectionOption)
 class QSSH_EXPORT SshConnectionParameters
 {
 public:
-    enum AuthenticationType { AuthenticationByPassword, AuthenticationByKey };
+    enum AuthenticationType {
+        AuthenticationTypePassword,
+        AuthenticationTypePublicKey,
+        AuthenticationTypeKeyboardInteractive,
+
+        // Some servers disable "password", others disable "keyboard-interactive".
+        AuthenticationTypeTryAllPasswordBasedMethods
+    };
+
     SshConnectionParameters();
 
     QString host;
