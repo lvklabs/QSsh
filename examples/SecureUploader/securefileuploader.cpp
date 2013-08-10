@@ -20,6 +20,7 @@
 #include "securefileuploader.h"
 
 #include <QtDebug>
+#include <QFileInfo>
 
 SecureFileUploader::SecureFileUploader(QObject *parent) :
     QObject(parent), m_connection(0)
@@ -29,8 +30,10 @@ SecureFileUploader::SecureFileUploader(QObject *parent) :
 void SecureFileUploader::upload(const QString &localFile, const QString &dest, const QString &host,
                                 const QString &username, const QString &passwd)
 {
-    m_localFilename = localFile;
-    m_remoteFilename = dest + "/" + localFile;
+    QFileInfo info(localFile);
+
+    m_localFilename = info.canonicalFilePath();
+    m_remoteFilename = dest + "/" + info.fileName();
 
     QSsh::SshConnectionParameters params;
     params.host = host;
