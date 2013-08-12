@@ -67,6 +67,7 @@ private:
 };
 
 struct SftpUploadDir;
+struct SftpDownloadDir;
 
 struct SftpStatFile : public AbstractSftpOperation
 {
@@ -158,9 +159,12 @@ struct SftpListDir : public AbstractSftpOperationWithHandle
 {
     typedef QSharedPointer<SftpListDir> Ptr;
 
-    SftpListDir(SftpJobId jobId, const QString &path);
+    SftpListDir(SftpJobId jobId, const QString &path,
+        const QSharedPointer<SftpDownloadDir> &parentJob = QSharedPointer<SftpDownloadDir>());
     virtual Type type() const { return ListDir; }
     virtual SftpOutgoingPacket &initialPacket(SftpOutgoingPacket &packet);
+
+    const QSharedPointer<SftpDownloadDir> parentJob;
 };
 
 
@@ -197,12 +201,14 @@ struct SftpDownload : public AbstractSftpTransfer
 {
     typedef QSharedPointer<SftpDownload> Ptr;
     SftpDownload(SftpJobId jobId, const QString &remotePath,
-        const QSharedPointer<QFile> &localFile);
+        const QSharedPointer<QFile> &localFile,
+        const QSharedPointer<SftpDownloadDir> &parentJob = QSharedPointer<SftpDownloadDir>());
     virtual Type type() const { return Download; }
     virtual SftpOutgoingPacket &initialPacket(SftpOutgoingPacket &packet);
 
     QMap<quint32, quint64> offsets;
     SftpJobId eofId;
+    const QSharedPointer<QSsh::Internal::SftpDownloadDir> parentJob;
 };
 
 struct SftpUploadFile : public AbstractSftpTransfer
@@ -244,6 +250,37 @@ struct SftpUploadDir
     bool hasError;
     QList<SftpUploadFile::Ptr> uploadsInProgress;
     QMap<SftpMakeDir::Ptr, Dir> mkdirsInProgress;
+};
+
+// Composite operation.
+struct SftpDownloadDir
+{
+    typedef QSharedPointer<SftpDownloadDir> Ptr;
+
+    struct Dir {
+        Dir() {}
+        Dir(const QString &l, const QString &r) : localDir(l), remoteDir(r) {}
+        QString localDir;
+        QString remoteDir;
+    };
+
+    SftpDownloadDir(SftpJobId jobId, SftpOverwriteMode mode)
+        : jobId(jobId), hasError(false), mode(mode) {}
+
+    ~SftpDownloadDir() {}
+
+    void setError()
+    {
+        hasError = true;
+        downloadsInProgress.clear();
+        lsdirsInProgress.clear();
+    }
+
+    const SftpJobId jobId;
+    bool hasError;
+    SftpOverwriteMode mode;
+    QList<SftpDownload::Ptr> downloadsInProgress;
+    QMap<SftpListDir::Ptr, Dir> lsdirsInProgress;
 };
 
 } // namespace Internal

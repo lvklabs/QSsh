@@ -119,8 +119,9 @@ AbstractSftpOperationWithHandle::AbstractSftpOperationWithHandle(SftpJobId jobId
 AbstractSftpOperationWithHandle::~AbstractSftpOperationWithHandle() { }
 
 
-SftpListDir::SftpListDir(SftpJobId jobId, const QString &path)
-    : AbstractSftpOperationWithHandle(jobId, path)
+SftpListDir::SftpListDir(SftpJobId jobId, const QString &path,
+    const QSharedPointer<SftpDownloadDir> &parentJob)
+    : AbstractSftpOperationWithHandle(jobId, path), parentJob(parentJob)
 {
 }
 
@@ -172,8 +173,10 @@ void AbstractSftpTransfer::calculateInFlightCount(quint32 chunkSize)
 
 
 SftpDownload::SftpDownload(SftpJobId jobId, const QString &remotePath,
-    const QSharedPointer<QFile> &localFile)
-    : AbstractSftpTransfer(jobId, remotePath, localFile), eofId(SftpInvalidJob)
+    const QSharedPointer<QFile> &localFile,
+    const QSharedPointer<QSsh::Internal::SftpDownloadDir> &parentJob)
+    : AbstractSftpTransfer(jobId, remotePath, localFile), eofId(SftpInvalidJob),
+      parentJob(parentJob)
 {
 }
 

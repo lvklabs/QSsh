@@ -88,6 +88,8 @@ private:
     void handleReadData();
     void handleAttrs();
 
+    void handleDownloadDir(SftpListDir::Ptr op, const QList<SftpFileInfo> & fileInfoList);
+
     void handleStatusGeneric(const JobMap::Iterator &it,
         const SftpStatusResponse &response);
     void handleMkdirStatus(const JobMap::Iterator &it,
