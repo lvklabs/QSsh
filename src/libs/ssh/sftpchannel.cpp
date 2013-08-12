@@ -920,9 +920,8 @@ void SftpChannelPrivate::handleDownloadDir(SftpListDir::Ptr op,
                 = Internal::openFile(fullPathLocal, op->parentJob->mode);
 
             if (localFile.isNull()) {
-                // andres.pagliano TODO handle error
-                //std::cout << "paglian: ERROR cannot open file: " << fullPathLocal.toStdString() << "\n";
-                continue;
+                reportRequestError(op, tr("Cannot create file ") + fullPathLocal);
+                break;
             }
 
             Internal::SftpDownload::Ptr downloadJob = Internal::SftpDownload::Ptr(
@@ -937,9 +936,8 @@ void SftpChannelPrivate::handleDownloadDir(SftpListDir::Ptr op,
             }
 
             if (!QDir().mkpath(fullPathLocal)) {
-                // andres.pagliano TODO handle error
-                //std::cout << "paglian: ERROR cannot create dir: " << fullPathLocal.toStdString() << "\n";
-                continue;
+                reportRequestError(op, tr("Cannot create directory ") + fullPathLocal);
+                break;
             }
 
             Internal::SftpListDir::Ptr lsdir = Internal::SftpListDir::Ptr(
