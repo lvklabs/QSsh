@@ -4,4 +4,4 @@ CONFIG   += ordered
 SUBDIRS = \
     src \
     examples \ 
-    #tests ### Disabled ###
+    tests 

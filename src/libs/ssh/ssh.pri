@@ -1,2 +1,2 @@
 include(ssh_dependencies.pri)
-LIBS *= -l$$qtLibraryName(QtcSsh)
+LIBS *= -l$$qtLibraryName(QSsh)
