@@ -81,12 +81,10 @@ namespace {
             : errorMessage(response.errorString, alternativeMessage);
     }
 
-    QSharedPointer<QFile> openFile(const QString &localFilePath, SftpOverwriteMode mode)
+    bool openFile(const QSharedPointer<QFile> &localFile, SftpOverwriteMode mode)
     {
-        QSharedPointer<QFile> localFile(new QFile(localFilePath));
-
         if (mode == SftpSkipExisting && localFile->exists())
-            return QSharedPointer<QFile>();
+            return false;
 
         QIODevice::OpenMode openMode = QIODevice::WriteOnly;
         if (mode == SftpOverwriteExisting)
@@ -94,10 +92,7 @@ namespace {
         else if (mode == SftpAppendToExisting)
             openMode |= QIODevice::Append;
 
-        if (!localFile->open(openMode))
-            return QSharedPointer<QFile>();
-
-        return localFile;
+        return localFile->open(openMode);
     }
 } // anonymous namespace
 } // namespace Internal
@@ -217,11 +212,9 @@ SftpJobId SftpChannel::uploadFile(const QString &localFilePath,
 SftpJobId SftpChannel::downloadFile(const QString &remoteFilePath,
     const QString &localFilePath, SftpOverwriteMode mode)
 {
-    QSharedPointer<QFile> localFile = Internal::openFile(localFilePath, mode);
-    if (localFile.isNull())
-        return SftpInvalidJob;
+    QSharedPointer<QFile> localFile(new QFile(localFilePath));
     return d->createJob(Internal::SftpDownload::Ptr(
-        new Internal::SftpDownload(++d->m_nextJobId, remoteFilePath, localFile)));
+        new Internal::SftpDownload(++d->m_nextJobId, remoteFilePath, localFile, mode)));
 }
 
 SftpJobId SftpChannel::uploadDir(const QString &localDirPath,
@@ -828,6 +821,14 @@ void SftpChannelPrivate::handleReadData()
         return;
     }
 
+    if (!op->localFile->isOpen()) {
+        if (!Internal::openFile(op->localFile, op->mode)) {
+            reportRequestError(op, tr("Cannot open file ") + op->localFile->fileName());
+            finishTransferRequest(it);
+            return;
+        }
+    }
+
     if (!op->localFile->seek(op->offsets[response.requestId])) {
         reportRequestError(op, op->localFile->errorString());
         finishTransferRequest(it);
@@ -916,16 +917,10 @@ void SftpChannelPrivate::handleDownloadDir(SftpListDir::Ptr op,
         QString fullPathLocal = QDir(dir.localDir).path() + "/" + fileInfo.name;
 
         if (fileInfo.type == FileTypeRegular) {
-            QSharedPointer<QFile> localFile
-                = Internal::openFile(fullPathLocal, op->parentJob->mode);
-
-            if (localFile.isNull()) {
-                reportRequestError(op, tr("Cannot create file ") + fullPathLocal);
-                break;
-            }
-
+            QSharedPointer<QFile> localFile(new QFile(fullPathLocal));
             Internal::SftpDownload::Ptr downloadJob = Internal::SftpDownload::Ptr(
-                new Internal::SftpDownload(++m_nextJobId, fullPathRemote, localFile, op->parentJob));
+                new Internal::SftpDownload(++m_nextJobId, fullPathRemote, localFile,
+                                           op->parentJob->mode, op->parentJob));
 
             op->parentJob->downloadsInProgress.append(downloadJob);
             createJob(downloadJob);

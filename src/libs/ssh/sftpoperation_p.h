@@ -201,13 +201,14 @@ struct SftpDownload : public AbstractSftpTransfer
 {
     typedef QSharedPointer<SftpDownload> Ptr;
     SftpDownload(SftpJobId jobId, const QString &remotePath,
-        const QSharedPointer<QFile> &localFile,
+        const QSharedPointer<QFile> &localFile, SftpOverwriteMode mode,
         const QSharedPointer<SftpDownloadDir> &parentJob = QSharedPointer<SftpDownloadDir>());
     virtual Type type() const { return Download; }
     virtual SftpOutgoingPacket &initialPacket(SftpOutgoingPacket &packet);
 
     QMap<quint32, quint64> offsets;
     SftpJobId eofId;
+    SftpOverwriteMode mode;
     const QSharedPointer<QSsh::Internal::SftpDownloadDir> parentJob;
 };
 
