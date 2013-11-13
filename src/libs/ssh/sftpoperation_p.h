@@ -1,32 +1,31 @@
-/**************************************************************************
+/****************************************************************************
 **
-** This file is part of Qt Creator
+** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
 **
-** Copyright (c) 2012 Nokia Corporation and/or its subsidiary(-ies).
+** This file is part of Qt Creator.
 **
-** Contact: http://www.qt-project.org/
-**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and Digia.  For licensing terms and
+** conditions see http://qt.digia.com/licensing.  For further information
+** use the contact form at http://qt.digia.com/contact-us.
 **
 ** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU Lesser General Public License version 2.1 requirements
+** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** This file may be used under the terms of the GNU Lesser General Public
-** License version 2.1 as published by the Free Software Foundation and
-** appearing in the file LICENSE.LGPL included in the packaging of this file.
-** Please review the following information to ensure the GNU Lesser General
-** Public License version 2.1 requirements will be met:
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Nokia gives you certain additional
-** rights. These rights are described in the Nokia Qt LGPL Exception
+** In addition, as a special exception, Digia gives you certain additional
+** rights.  These rights are described in the Digia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
-** Other Usage
-**
-** Alternatively, this file may be used in accordance with the terms and
-** conditions contained in a signed written agreement between you and Nokia.
-**
-**
-**************************************************************************/
+****************************************************************************/
 
 #ifndef SFTPOPERATION_P_H
 #define SFTPOPERATION_P_H
@@ -67,7 +66,6 @@ private:
 };
 
 struct SftpUploadDir;
-struct SftpDownloadDir;
 
 struct SftpStatFile : public AbstractSftpOperation
 {
@@ -159,12 +157,9 @@ struct SftpListDir : public AbstractSftpOperationWithHandle
 {
     typedef QSharedPointer<SftpListDir> Ptr;
 
-    SftpListDir(SftpJobId jobId, const QString &path,
-        const QSharedPointer<SftpDownloadDir> &parentJob = QSharedPointer<SftpDownloadDir>());
+    SftpListDir(SftpJobId jobId, const QString &path);
     virtual Type type() const { return ListDir; }
     virtual SftpOutgoingPacket &initialPacket(SftpOutgoingPacket &packet);
-
-    const QSharedPointer<SftpDownloadDir> parentJob;
 };
 
 
@@ -201,15 +196,12 @@ struct SftpDownload : public AbstractSftpTransfer
 {
     typedef QSharedPointer<SftpDownload> Ptr;
     SftpDownload(SftpJobId jobId, const QString &remotePath,
-        const QSharedPointer<QFile> &localFile, SftpOverwriteMode mode,
-        const QSharedPointer<SftpDownloadDir> &parentJob = QSharedPointer<SftpDownloadDir>());
+        const QSharedPointer<QFile> &localFile);
     virtual Type type() const { return Download; }
     virtual SftpOutgoingPacket &initialPacket(SftpOutgoingPacket &packet);
 
     QMap<quint32, quint64> offsets;
     SftpJobId eofId;
-    SftpOverwriteMode mode;
-    const QSharedPointer<QSsh::Internal::SftpDownloadDir> parentJob;
 };
 
 struct SftpUploadFile : public AbstractSftpTransfer
@@ -251,37 +243,6 @@ struct SftpUploadDir
     bool hasError;
     QList<SftpUploadFile::Ptr> uploadsInProgress;
     QMap<SftpMakeDir::Ptr, Dir> mkdirsInProgress;
-};
-
-// Composite operation.
-struct SftpDownloadDir
-{
-    typedef QSharedPointer<SftpDownloadDir> Ptr;
-
-    struct Dir {
-        Dir() {}
-        Dir(const QString &l, const QString &r) : localDir(l), remoteDir(r) {}
-        QString localDir;
-        QString remoteDir;
-    };
-
-    SftpDownloadDir(SftpJobId jobId, SftpOverwriteMode mode)
-        : jobId(jobId), hasError(false), mode(mode) {}
-
-    ~SftpDownloadDir() {}
-
-    void setError()
-    {
-        hasError = true;
-        downloadsInProgress.clear();
-        lsdirsInProgress.clear();
-    }
-
-    const SftpJobId jobId;
-    bool hasError;
-    SftpOverwriteMode mode;
-    QList<SftpDownload::Ptr> downloadsInProgress;
-    QMap<SftpListDir::Ptr, Dir> lsdirsInProgress;
 };
 
 } // namespace Internal

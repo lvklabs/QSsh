@@ -1,1 +1,1 @@
-include(../3rdparty/botan/botan.pri)
+QTC_LIB_NAME = QtcSsh

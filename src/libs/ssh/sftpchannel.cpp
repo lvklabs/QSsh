@@ -1,32 +1,31 @@
-/**************************************************************************
+/****************************************************************************
 **
-** This file is part of Qt Creator
+** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
 **
-** Copyright (c) 2012 Nokia Corporation and/or its subsidiary(-ies).
+** This file is part of Qt Creator.
 **
-** Contact: http://www.qt-project.org/
-**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and Digia.  For licensing terms and
+** conditions see http://qt.digia.com/licensing.  For further information
+** use the contact form at http://qt.digia.com/contact-us.
 **
 ** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU Lesser General Public License version 2.1 requirements
+** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** This file may be used under the terms of the GNU Lesser General Public
-** License version 2.1 as published by the Free Software Foundation and
-** appearing in the file LICENSE.LGPL included in the packaging of this file.
-** Please review the following information to ensure the GNU Lesser General
-** Public License version 2.1 requirements will be met:
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Nokia gives you certain additional
-** rights. These rights are described in the Nokia Qt LGPL Exception
+** In addition, as a special exception, Digia gives you certain additional
+** rights.  These rights are described in the Digia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
-** Other Usage
-**
-** Alternatively, this file may be used in accordance with the terms and
-** conditions contained in a signed written agreement between you and Nokia.
-**
-**
-**************************************************************************/
+****************************************************************************/
 
 #include "sftpchannel.h"
 #include "sftpchannel_p.h"
@@ -41,7 +40,7 @@
 /*!
     \class QSsh::SftpChannel
 
-    \brief This class provides SFTP operations.
+    \brief The SftpChannel class provides SFTP operations.
 
     Objects are created via SshConnection::createSftpChannel().
     The channel needs to be initialized with
@@ -80,26 +79,8 @@ namespace {
         return response.status == SSH_FX_OK ? QString()
             : errorMessage(response.errorString, alternativeMessage);
     }
-
-    bool openFile(const QSharedPointer<QFile> &localFile, SftpOverwriteMode mode)
-    {
-        if (mode == SftpSkipExisting && localFile->exists())
-            return false;
-
-        QIODevice::OpenMode openMode = QIODevice::WriteOnly;
-        if (mode == SftpOverwriteExisting)
-            openMode |= QIODevice::Truncate;
-        else if (mode == SftpAppendToExisting)
-            openMode |= QIODevice::Append;
-
-        return localFile->open(openMode);
-    }
 } // anonymous namespace
 } // namespace Internal
-
-//--------------------------------------------------------------------------------------------------
-// SftpChannel
-//--------------------------------------------------------------------------------------------------
 
 SftpChannel::SftpChannel(quint32 channelId,
     Internal::SshSendFacility &sendFacility)
@@ -213,8 +194,17 @@ SftpJobId SftpChannel::downloadFile(const QString &remoteFilePath,
     const QString &localFilePath, SftpOverwriteMode mode)
 {
     QSharedPointer<QFile> localFile(new QFile(localFilePath));
+    if (mode == SftpSkipExisting && localFile->exists())
+        return SftpInvalidJob;
+    QIODevice::OpenMode openMode = QIODevice::WriteOnly;
+    if (mode == SftpOverwriteExisting)
+        openMode |= QIODevice::Truncate;
+    else if (mode == SftpAppendToExisting)
+        openMode |= QIODevice::Append;
+    if (!localFile->open(openMode))
+        return SftpInvalidJob;
     return d->createJob(Internal::SftpDownload::Ptr(
-        new Internal::SftpDownload(++d->m_nextJobId, remoteFilePath, localFile, mode)));
+        new Internal::SftpDownload(++d->m_nextJobId, remoteFilePath, localFile)));
 }
 
 SftpJobId SftpChannel::uploadDir(const QString &localDirPath,
@@ -237,31 +227,11 @@ SftpJobId SftpChannel::uploadDir(const QString &localDirPath,
     return uploadDirOp->jobId;
 }
 
-SftpJobId SftpChannel::downloadDir(const QString &remoteDirPath,
-    const QString &localDirPath, SftpOverwriteMode mode)
-{
-    if (state() != Initialized)
-        return SftpInvalidJob;
-    if (!QDir().mkpath(localDirPath))
-        return SftpInvalidJob;
-    const Internal::SftpDownloadDir::Ptr downloadDirOp(
-        new Internal::SftpDownloadDir(++d->m_nextJobId, mode));
-    const Internal::SftpListDir::Ptr lsdirOp(
-        new Internal::SftpListDir(++d->m_nextJobId, remoteDirPath, downloadDirOp));
-    downloadDirOp->lsdirsInProgress.insert(lsdirOp,
-       Internal::SftpDownloadDir::Dir(localDirPath, remoteDirPath));
-    d->createJob(lsdirOp);
-    return downloadDirOp->jobId;
-}
-
 SftpChannel::~SftpChannel()
 {
     delete d;
 }
 
-//--------------------------------------------------------------------------------------------------
-// SftpChannelPrivate
-//--------------------------------------------------------------------------------------------------
 
 namespace Internal {
 
@@ -583,15 +553,9 @@ void SftpChannelPrivate::handleLsStatus(const JobMap::Iterator &it,
     const SftpStatusResponse &response)
 {
     SftpListDir::Ptr op = it.value().staticCast<SftpListDir>();
-
-    if (op->parentJob && op->parentJob->hasError) {
-        m_jobs.erase(it);
-        return;
-    }
-
     switch (op->state) {
     case SftpListDir::OpenRequested:
-        reportRequestError(op, errorMessage(response.errorString,
+        emit finished(op->jobId, errorMessage(response.errorString,
             tr("Remote directory could not be opened for reading.")));
         m_jobs.erase(it);
         break;
@@ -604,31 +568,10 @@ void SftpChannelPrivate::handleLsStatus(const JobMap::Iterator &it,
             op->jobId).rawData());
         break;
     case SftpListDir::CloseRequested:
-        if (op->hasError || (op->parentJob && op->parentJob->hasError)) {
-            m_jobs.erase(it);
-            return;
-        }
-
-        {
+        if (!op->hasError) {
             const QString error = errorMessage(response,
                 tr("Failed to close remote directory."));
-
-            if (op->parentJob) {
-                if (!error.isEmpty()) {
-                    op->parentJob->setError();
-                }
-                if (op->parentJob->hasError) {
-                    emit finished(op->parentJob->jobId, error);
-                } else {
-                    op->parentJob->lsdirsInProgress.remove(op);
-                    if (op->parentJob->lsdirsInProgress.isEmpty() &&
-                        op->parentJob->downloadsInProgress.isEmpty()) {
-                        emit finished(op->parentJob->jobId);
-                    }
-                }
-            } else {
-                emit finished(op->jobId, error);
-            }
+            emit finished(op->jobId, error);
         }
         m_jobs.erase(it);
         break;
@@ -642,16 +585,11 @@ void SftpChannelPrivate::handleGetStatus(const JobMap::Iterator &it,
     const SftpStatusResponse &response)
 {
     SftpDownload::Ptr op = it.value().staticCast<SftpDownload>();
-
-    if (op->parentJob && op->parentJob->hasError) {
-        m_jobs.erase(it);
-        return;
-    }
-
     switch (op->state) {
     case SftpDownload::OpenRequested:
-        reportRequestError(op, errorMessage(response.errorString,
-            tr("Failed to open remote file for reading.")));
+        emit finished(op->jobId,
+            errorMessage(response.errorString,
+                tr("Failed to open remote file for reading.")));
         m_jobs.erase(it);
         break;
     case SftpDownload::Open:
@@ -670,20 +608,11 @@ void SftpChannelPrivate::handleGetStatus(const JobMap::Iterator &it,
     case SftpDownload::CloseRequested:
         Q_ASSERT(op->inFlightCount == 1);
         if (!op->hasError) {
-            if (response.status == SSH_FX_OK) {
-                if (op->parentJob) {
-                    op->parentJob->downloadsInProgress.removeOne(op);
-                    if (op->parentJob->lsdirsInProgress.isEmpty()
-                        && op->parentJob->downloadsInProgress.isEmpty())
-                        emit finished(op->parentJob->jobId);
-                } else {
-                    emit finished(op->jobId);
-                }
-            } else {
-                const QString error = errorMessage(response.errorString,
-                    tr("Failed to close remote file."));
-                reportRequestError(op, error);
-            }
+            if (response.status == SSH_FX_OK)
+                emit finished(op->jobId);
+            else
+                reportRequestError(op, errorMessage(response.errorString,
+                    tr("Failed to close remote file.")));
         }
         removeTransferRequest(it);
         break;
@@ -789,13 +718,7 @@ void SftpChannelPrivate::handleName()
             attributesToFileInfo(file.attributes, fileInfo);
             fileInfoList << fileInfo;
         }
-
-        if (op->parentJob) {
-            handleDownloadDir(op, fileInfoList);
-        } else {
-            emit fileInfoAvailable(op->jobId, fileInfoList);
-        }
-
+        emit fileInfoAvailable(op->jobId, fileInfoList);
         sendData(m_outgoingPacket.generateReadDir(op->remoteHandle,
             op->jobId).rawData());
         break;
@@ -819,14 +742,6 @@ void SftpChannelPrivate::handleReadData()
     if (op->hasError) {
         finishTransferRequest(it);
         return;
-    }
-
-    if (!op->localFile->isOpen()) {
-        if (!Internal::openFile(op->localFile, op->mode)) {
-            reportRequestError(op, tr("Cannot open file ") + op->localFile->fileName());
-            finishTransferRequest(it);
-            return;
-        }
     }
 
     if (!op->localFile->seek(op->offsets[response.requestId])) {
@@ -904,50 +819,6 @@ void SftpChannelPrivate::handleAttrs()
     }
 }
 
-void SftpChannelPrivate::handleDownloadDir(SftpListDir::Ptr op,
-    const QList<SftpFileInfo> &fileInfoList)
-{
-    if (op->parentJob->hasError) {
-        return;
-    }
-
-    foreach (SftpFileInfo fileInfo, fileInfoList) {
-        Internal::SftpDownloadDir::Dir dir = op->parentJob->lsdirsInProgress[op];
-        QString fullPathRemote = QDir(dir.remoteDir).path() + "/" + fileInfo.name;
-        QString fullPathLocal = QDir(dir.localDir).path() + "/" + fileInfo.name;
-
-        if (fileInfo.type == FileTypeRegular) {
-            QSharedPointer<QFile> localFile(new QFile(fullPathLocal));
-            Internal::SftpDownload::Ptr downloadJob = Internal::SftpDownload::Ptr(
-                new Internal::SftpDownload(++m_nextJobId, fullPathRemote, localFile,
-                                           op->parentJob->mode, op->parentJob));
-
-            op->parentJob->downloadsInProgress.append(downloadJob);
-            createJob(downloadJob);
-
-        } else if (fileInfo.type == FileTypeDirectory) {
-            if (fileInfo.name == "." || fileInfo.name == "..") {
-                continue;
-            }
-
-            if (!QDir().mkpath(fullPathLocal)) {
-                reportRequestError(op, tr("Cannot create directory ") + fullPathLocal);
-                break;
-            }
-
-            Internal::SftpListDir::Ptr lsdir = Internal::SftpListDir::Ptr(
-                new Internal::SftpListDir(++m_nextJobId, fullPathRemote, op->parentJob));
-
-            op->parentJob->lsdirsInProgress.insert(lsdir,
-                Internal::SftpDownloadDir::Dir(fullPathLocal, fullPathRemote));
-            createJob(lsdir);
-
-        } else {
-            // andres.pagliano TODO handle?
-        }
-    }
-}
-
 SftpChannelPrivate::JobMap::Iterator SftpChannelPrivate::lookupJob(SftpJobId id)
 {
     JobMap::Iterator it = m_jobs.find(id);
@@ -1001,28 +872,7 @@ void SftpChannelPrivate::sendReadRequest(const SftpDownload::Ptr &job,
 void SftpChannelPrivate::reportRequestError(const AbstractSftpOperationWithHandle::Ptr &job,
     const QString &error)
 {
-    // andres.pagliano TODO refactor
-
-    // Report list error during download dir
-    SftpListDir::Ptr lsjob = job.dynamicCast<SftpListDir>();
-    if (!lsjob.isNull() && lsjob->parentJob) {
-        if (!lsjob->parentJob->hasError) {
-            emit finished(lsjob->parentJob->jobId, error);
-            lsjob->parentJob->hasError = true;
-        }
-    } else {
-        // Report download error during recursive download dir
-        SftpDownload::Ptr djob = job.dynamicCast<SftpDownload>();
-        if (!djob.isNull() && djob->parentJob) {
-            if (!djob->parentJob->hasError) {
-                emit finished(djob->parentJob->jobId, error);
-                djob->parentJob->hasError = true;
-            }
-        } else {
-            // Other error
-            emit finished(job->jobId, error);
-        }
-    }
+    emit finished(job->jobId, error);
     job->hasError = true;
 }
 
