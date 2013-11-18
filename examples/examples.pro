@@ -3,5 +3,7 @@ CONFIG   += ordered
 
 SUBDIRS = \
     SecureUploader \
-	qtsshshell
+	qtsshshell \
+	BotanTest
+	
 
