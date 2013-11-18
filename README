@@ -45,3 +45,7 @@ Examples
 
  - Directory examples/SecureUploader/ contains an example on how to upload
    a file using SFTP
+   
+ -Directory examples/qtsshshell/ 一个sshShell的例子
+ 
+ -Directory examples/BotanTest/ 一个botan类库AES256加密的封装例子。
