@@ -93,8 +93,6 @@ public:
 
     // Note: This is ignored by the OpenSSH server.
     void sendSignal(Signal signal);
-    void sendExcCommand(const QByteArray &command);//ADD
-    void sendData(const QByteArray & data);//ADD
     void kill() { sendSignal(KillSignal); }
 
 signals:
