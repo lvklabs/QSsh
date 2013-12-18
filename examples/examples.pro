@@ -4,8 +4,7 @@ CONFIG   += ordered
 SUBDIRS = \
     SecureUploader \
 	qtsshshell \
-	BotanTest
-unix {
-    SUBDIRS += ssh
-}	
+	BotanTest \
+	ssh
+	
 

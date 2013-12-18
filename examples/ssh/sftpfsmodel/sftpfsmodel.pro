@@ -1,10 +1,11 @@
 include(../ssh.pri)
-include(../../../../src/shared/modeltest/modeltest.pri)
 
 QT += gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET=sftpfsmodel
-SOURCES+=main.cpp window.cpp
-HEADERS+=window.h
+SOURCES+=main.cpp window.cpp \
+    modeltest.cpp
+HEADERS+=window.h \
+    modeltest.h
 FORMS=window.ui

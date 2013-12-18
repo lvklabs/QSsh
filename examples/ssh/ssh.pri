@@ -13,8 +13,10 @@ CONFIG   += console
 CONFIG   -= app_bundle
 TEMPLATE = app
 
-QSSH_ROOT = $${PWD}/../../../..
+QSSH_ROOT = $${PWD}/../..
 DESTDIR           = $${QSSH_ROOT}/examples_bin
 
 DEPENDPATH+=.
 INCLUDEPATH+=.
+
+LIBS += -L$${QSSH_ROOT}/lib -l$$qtLibraryName(Botan) -l$$qtLibraryName(QSsh)
