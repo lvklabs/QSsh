@@ -1,14 +1,8 @@
-TEMPLATE = lib
-TARGET = QSsh
 QT += gui network
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 DEFINES += QSSH_LIBRARY
 
-#Enable debug log
-#DEFINES += CREATOR_SSH_DEBUG
-
-
 include(../../qtcreatorlibrary.pri)
-include(ssh_dependencies.pri)
 
 SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshremoteprocess.cpp \
@@ -34,6 +28,7 @@ SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshkeypasswordretriever.cpp \
     $$PWD/sftpfilesystemmodel.cpp \
     $$PWD/sshkeycreationdialog.cpp \
+    $$PWD/sshinit.cpp \
     $$PWD/sshdirecttcpiptunnel.cpp
 
 HEADERS = $$PWD/sshsendfacility_p.h \
@@ -69,8 +64,9 @@ HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sshkeycreationdialog.h \
     $$PWD/ssh_global.h \
     $$PWD/sshdirecttcpiptunnel_p.h \
+    $$PWD/sshinit_p.h \
     $$PWD/sshdirecttcpiptunnel.h
 
 FORMS = $$PWD/sshkeycreationdialog.ui
-include(../3rdparty/botan/botan.pri)
 
+include(../3rdparty/botan/botan.pri)

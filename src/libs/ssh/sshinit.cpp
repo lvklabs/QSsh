@@ -26,62 +26,27 @@
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
+#include "sshinit_p.h"
 
-#ifndef  SSHDIRECTTCPIPTUNNEL_H
-#define  SSHDIRECTTCPIPTUNNEL_H
+#include <botan/botan.h>
 
-#include "ssh_global.h"
-
-#include <QIODevice>
-#include <QSharedPointer>
+#include <QMutex>
+#include <QMutexLocker>
 
 namespace QSsh {
-class SshConnectionInfo;
-
 namespace Internal {
-class SshChannelManager;
-class SshDirectTcpIpTunnelPrivate;
-class SshSendFacility;
-} // namespace Internal
 
-class QSSH_EXPORT SshDirectTcpIpTunnel : public QIODevice
+static bool initialized = false;
+static QMutex initMutex;
+
+void initSsh()
 {
-    Q_OBJECT
+    QMutexLocker locker(&initMutex);
+    if (!initialized) {
+        Botan::LibraryInitializer::initialize("thread_safe=true");
+        initialized = true;
+    }
+}
 
-    friend class Internal::SshChannelManager;
-
-public:
-    typedef QSharedPointer<SshDirectTcpIpTunnel> Ptr;
-
-    ~SshDirectTcpIpTunnel();
-
-    // QIODevice stuff
-    bool atEnd() const;
-    qint64 bytesAvailable() const;
-    bool canReadLine() const;
-    void close();
-    bool isSequential() const { return true; }
-
-    void initialize();
-
-signals:
-    void initialized();
-    void error(const QString &reason);
-    void tunnelClosed();
-
-private:
-    SshDirectTcpIpTunnel(quint32 channelId, quint16 remotePort,
-            const SshConnectionInfo &connectionInfo, Internal::SshSendFacility &sendFacility);
-
-    // QIODevice stuff
-    qint64 readData(char *data, qint64 maxlen);
-    qint64 writeData(const char *data, qint64 len);
-
-    Q_SLOT void handleError(const QString &reason);
-
-    Internal::SshDirectTcpIpTunnelPrivate * const d;
-};
-
+} // namespace Internal
 } // namespace QSsh
-
-#endif // SSHDIRECTTCPIPTUNNEL_H

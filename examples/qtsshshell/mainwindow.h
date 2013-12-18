@@ -2,7 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QSsh>
+//#include <QSsh>
 
 namespace Ui {
 class MainWindow;

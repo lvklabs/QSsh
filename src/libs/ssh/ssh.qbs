@@ -1,5 +1,5 @@
 import qbs.base 1.0
-import "../QtcLibrary.qbs" as QtcLibrary
+import QtcLibrary
 
 QtcLibrary {
     name: "QtcSsh"
@@ -29,6 +29,7 @@ QtcLibrary {
         "ssherrors.h",
         "sshexception_p.h",
         "sshincomingpacket_p.h", "sshincomingpacket.cpp",
+        "sshinit_p.h", "sshinit.cpp",
         "sshkeycreationdialog.cpp", "sshkeycreationdialog.h", "sshkeycreationdialog.ui",
         "sshkeyexchange.cpp", "sshkeyexchange_p.h",
         "sshkeygenerator.cpp", "sshkeygenerator.h",
@@ -66,12 +67,14 @@ QtcLibrary {
     }
     property var botanDefines: {
         var result = [];
-        if (useSystemBotan)
+        if (useSystemBotan) {
             result.push("USE_SYSTEM_BOTAN")
-        else {
+        } else {
             result.push("BOTAN_DLL=")
             if (qbs.toolchain.contains("msvc"))
-                result.push("BOTAN_BUILD_COMPILER_IS_MSVC", "BOTAN_TARGET_OS_HAS_GMTIME_S")
+                result.push("BOTAN_BUILD_COMPILER_IS_MSVC",
+                            "BOTAN_TARGET_OS_HAS_GMTIME_S",
+                            "_SCL_SECURE_NO_WARNINGS")
             if (qbs.toolchain.contains("gcc") || qbs.toolchain.contains("mingw"))
                 result.push("BOTAN_BUILD_COMPILER_IS_GCC")
             if (qbs.targetOS.contains("linux"))

@@ -27,43 +27,10 @@
 **
 ****************************************************************************/
 
-#ifndef SSHKEYCREATIONDIALOG_H
-#define SSHKEYCREATIONDIALOG_H
-
-#include "ssh_global.h"
-
-#include <QDialog>
-
 namespace QSsh {
-class SshKeyGenerator;
+namespace Internal {
 
-namespace Ui { class SshKeyCreationDialog; }
+void initSsh();
 
-class QSSH_EXPORT SshKeyCreationDialog : public QDialog
-{
-    Q_OBJECT
-public:
-    SshKeyCreationDialog(QWidget *parent = 0);
-    ~SshKeyCreationDialog();
-
-    QString privateKeyFilePath() const;
-    QString publicKeyFilePath() const;
-
-private slots:
-    void keyTypeChanged();
-    void generateKeys();
-    void handleBrowseButtonClicked();
-
-private:
-    void setPrivateKeyFile(const QString &filePath);
-    void saveKeys();
-    bool userForbidsOverwriting();
-
-private:
-    SshKeyGenerator *m_keyGenerator;
-    Ui::SshKeyCreationDialog *m_ui;
-};
-
+} // namespace Internal
 } // namespace QSsh
-
-#endif  // SSHKEYCREATIONDIALOG_H
