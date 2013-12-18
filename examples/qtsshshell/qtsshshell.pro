@@ -11,7 +11,12 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = qtsshshell
 TEMPLATE = app
 
+QSSH_ROOT = $${PWD}/../..
+DESTDIR           = $${QSSH_ROOT}/examples_bin
+
 INCLUDEPATH = $$PWD/../../src/libs/ssh/
+
+CONFIG += C++11
 
 SOURCES += main.cpp\
         mainwindow.cpp
@@ -25,4 +30,4 @@ FORMS    += mainwindow.ui
 
 
 include(../../qssh.pri) ## Required for IDE_LIBRARY_PATH and qtLibraryName
-LIBS += -L$$IDE_LIBRARY_PATH -l$$qtLibraryName(Botan) -l$$qtLibraryName(QSsh)
+LIBS += -L$${QSSH_ROOT}/lib -l$$qtLibraryName(Botan) -l$$qtLibraryName(QSsh)

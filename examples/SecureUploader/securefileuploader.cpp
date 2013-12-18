@@ -39,7 +39,7 @@ void SecureFileUploader::upload(const QString &localFile, const QString &dest, c
     params.host = host;
     params.userName = username;
     params.password = passwd;
-    params.authenticationType = QSsh::SshConnectionParameters::AuthenticationByPassword;
+    params.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePassword;
     params.timeout = 30;
     params.port = 22;
 

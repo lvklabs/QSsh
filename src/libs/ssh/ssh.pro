@@ -1,8 +1,16 @@
+TEMPLATE = lib
+TARGET = QSsh
+
+QSSH_ROOT = $${PWD}/../../..
+
 QT += gui network
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+
 DEFINES += QSSH_LIBRARY
 
 include(../../qtcreatorlibrary.pri)
+
+DESTDIR           = $${QSSH_ROOT}/lib
 
 SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshremoteprocess.cpp \

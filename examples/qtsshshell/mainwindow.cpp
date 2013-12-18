@@ -13,7 +13,7 @@ MainWindow::MainWindow(QWidget *parent) :
     par.userName = "dsby";
     par.password = "123789";
     par.timeout = 500;
-    par.authenticationType = QSsh::SshConnectionParameters::AuthenticationByPassword;
+    par.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePassword;
     this->ui->lineip->setText("192.168.56.102");
 }
 

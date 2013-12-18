@@ -13,5 +13,8 @@ CONFIG   += console
 CONFIG   -= app_bundle
 TEMPLATE = app
 
+QSSH_ROOT = $${PWD}/../../../..
+DESTDIR           = $${QSSH_ROOT}/examples_bin
+
 DEPENDPATH+=.
 INCLUDEPATH+=.

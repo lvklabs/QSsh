@@ -2,7 +2,9 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-//#include <QSsh>
+#include <sshconnection.h>
+#include <qsharedpointer.h>
+#include <sshremoteprocess.h>
 
 namespace Ui {
 class MainWindow;

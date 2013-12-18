@@ -1,11 +1,13 @@
 TEMPLATE = lib
 TARGET = Botan
 
+QSSH_ROOT = $${PWD}/../../../..
 PRECOMPILED_HEADER = ../precompiled_headers/botan_pch.h
 
 CONFIG += exceptions
 
 include(../../../qtcreatorlibrary.pri)
+DESTDIR           = $${QSSH_ROOT}/lib
 
 DEPENDPATH += .
 INCLUDEPATH += .
