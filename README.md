@@ -49,3 +49,7 @@ Examples
  -Directory examples/qtsshshell/ 一个sshShell的例子
  
  -Directory examples/BotanTest/ 一个botan类库AES256加密的封装例子。
+ 
+ -Directory examples/ssh/  Qt-Creator下自带的例子。
+ 
+ 注：生成的库在 lib文件夹下就可以直接用的。
