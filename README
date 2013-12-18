@@ -15,7 +15,7 @@ QSsh为qt提供SSH和SFTP支持，使你能方便快捷的使用SSH和SFTP。
 Prerequisites:
 编译环境
 
-Qt 5.0+ (May work with older versions) Qt5.0向上版本，（qt4.8x没有测试，可能支持。）
+Qt 4.8+ (May work with older versions) Qt4.8向上版本
 
 On Windows: MinGW 4.7 or later, Visual Studio 2010 or later
 
