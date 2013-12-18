@@ -5,5 +5,7 @@ SUBDIRS = \
     SecureUploader \
 	qtsshshell \
 	BotanTest
-	
+unix {
+    SUBDIRS += ssh
+}	
 
