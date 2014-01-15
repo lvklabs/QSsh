@@ -90,7 +90,7 @@ public:
 
 signals:
     void initialized();
-    void initializationFailed(const QString &reason);
+    void channelError(const QString &reason);
     void closed();
 
     // error.isEmpty <=> finished successfully
