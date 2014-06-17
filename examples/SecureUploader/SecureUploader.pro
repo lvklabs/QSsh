@@ -9,7 +9,7 @@ QT       += core network
 TARGET = SecureUploader
 TEMPLATE = app
 
-INCLUDEPATH = $$PWD/../../src/libs/ssh/
+INCLUDEPATH = $$PWD/../../include/ssh
 
 QSSH_ROOT = $${PWD}/../..
 DESTDIR           = $${QSSH_ROOT}/examples_bin
@@ -21,7 +21,7 @@ SOURCES += \
 HEADERS  += \
     securefileuploader.h
 
-include(../../qssh.pri) ## Required for IDE_LIBRARY_PATH and qtLibraryName
+unix:LIBS += -L$${QSSH_ROOT}/lib -lQSsh
 
-LIBS += -L$${QSSH_ROOT}/lib -l$$qtLibraryName(Botan) -l$$qtLibraryName(QSsh)
-
+win32:CONFIG(release, debug|release): LIBS += -L$${QSSH_ROOT}/lib -lQSsh
+else:win32:CONFIG(debug, debug|release): LIBS += -L$${QSSH_ROOT}/lib -lQSshd

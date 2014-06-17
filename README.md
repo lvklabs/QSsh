@@ -9,11 +9,12 @@ About QSsh(关于 QSsh)
 
     QSsh为qt提供SSH和SFTP支持，使你能方便快捷的使用SSH和SFTP。
     这个项目是基于Qt Creator中的LibQtcSsh.so。十分感谢Qt Creator团队。
+    基于GPL和LGPL授权。
 ==========
 
 Prerequisites:(编译环境)
 -------------
-    Qt 4.8+ (May work with older versions) Qt4.8向上版本
+    Qt 5.x (May work with older versions) Qt5系列（4.8系列没有测试，可能可以运行）
 
     On Windows: MinGW 4.7 or later, Visual Studio 2010 or later
 
@@ -45,9 +46,6 @@ Examples
 
 - Directory examples/qtsshshell/ 一个sshShell的例子
  
-- Directory examples/BotanTest/ 一个botan类库AES256加密的封装例子。
- 
 - Directory examples/ssh/  Qt-Creator下自带的例子。
  
 > 注：生成的库在 lib文件夹下就可以直接用的。
-> >   Qt-Creator3.0 版本与原来2.x 连接信息的验证方式有所变化，原来的需要更改部分接口

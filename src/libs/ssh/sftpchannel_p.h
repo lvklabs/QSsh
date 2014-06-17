@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -52,7 +52,7 @@ public:
 
 signals:
     void initialized();
-    void initializationFailed(const QString &reason);
+    void channelError(const QString &reason);
     void closed();
     void finished(QSsh::SftpJobId job, const QString &error = QString());
     void dataAvailable(QSsh::SftpJobId job, const QString &data);

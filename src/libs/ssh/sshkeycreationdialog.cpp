@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,8 +45,13 @@ SshKeyCreationDialog::SshKeyCreationDialog(QWidget *parent)
     : QDialog(parent), m_keyGenerator(0), m_ui(new Ui::SshKeyCreationDialog)
 {
     m_ui->setupUi(this);
-    const QString defaultPath = QDesktopServices::storageLocation(QDesktopServices::HomeLocation)
-        + QLatin1String("/.ssh/qtc_id");
+    // Not using Utils::PathChooser::browseButtonLabel to avoid dependency
+#ifdef Q_OS_MAC
+    m_ui->privateKeyFileButton->setText(tr("Choose..."));
+#else
+    m_ui->privateKeyFileButton->setText(tr("Browse..."));
+#endif//DSBY： 更改QDesktopServices::storageLocation(QDesktopServices::HomeLocation) 到QDir::homePath()
+    const QString defaultPath = QDir::homePath() + QLatin1String("/.ssh/qtc_id");
     setPrivateKeyFile(defaultPath);
 
     connect(m_ui->rsa, SIGNAL(toggled(bool)), this, SLOT(keyTypeChanged()));

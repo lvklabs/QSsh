@@ -1,22 +1,18 @@
 QT       = core network
 
 QTC_LIB_DEPENDS += ssh
-include (../../qssh.pri)
-
-macx:QMAKE_LFLAGS += -Wl,-rpath,\"$$IDE_BIN_PATH/..\"
-LIBS *= -L$$IDE_LIBRARY_PATH
-unix {
-    QMAKE_LFLAGS += -Wl,-rpath,\"$$IDE_LIBRARY_PATH\"
-}
 
 CONFIG   += console
 CONFIG   -= app_bundle
 TEMPLATE = app
 
 QSSH_ROOT = $${PWD}/../..
-DESTDIR           = $${QSSH_ROOT}/examples_bin
+DESTDIR   = $${QSSH_ROOT}/examples_bin
 
-DEPENDPATH+=.
-INCLUDEPATH+=.
+DEPENDPATH+= $$PWD/../../include
+INCLUDEPATH = $$PWD/../../include
 
-LIBS += -L$${QSSH_ROOT}/lib -l$$qtLibraryName(Botan) -l$$qtLibraryName(QSsh)
+unix:LIBS += -L$${QSSH_ROOT}/lib -lQSsh
+
+win32:CONFIG(release, debug|release): LIBS += -L$${QSSH_ROOT}/lib -lQSsh
+else:win32:CONFIG(debug, debug|release): LIBS += -L$${QSSH_ROOT}/lib -lQSshd

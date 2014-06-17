@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -84,7 +84,7 @@ private slots:
     void handleSshConnectionEstablished();
     void handleSshConnectionFailure();
     void handleSftpChannelInitialized();
-    void handleSftpChannelInitializationFailed(const QString &reason);
+    void handleSftpChannelError(const QString &reason);
     void handleFileInfo(QSsh::SftpJobId jobId, const QList<QSsh::SftpFileInfo> &fileInfoList);
     void handleSftpJobFinished(QSsh::SftpJobId jobId, const QString &errorMessage);
 
