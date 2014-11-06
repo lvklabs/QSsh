@@ -46,6 +46,8 @@
 #include <botan/rsa.h>
 #include <botan/ber_dec.h>
 #include <botan/pubkey.h>
+#include <botan/ctr.h>
+#include <botan/filters.h>
 
 #include <QDebug>
 #include <QList>
@@ -73,14 +75,25 @@ void SshAbstractCryptoFacility::clearKeys()
     m_hMac.reset(0);
 }
 
+SshAbstractCryptoFacility::Mode SshAbstractCryptoFacility::getMode(const QByteArray &algoName)
+{
+    if (algoName.endsWith("-ctr"))
+        return CtrMode;
+    if (algoName.endsWith("-cbc"))
+        return CbcMode;
+    throw SshClientException(SshInternalError, SSH_TR("Unexpected cipher \"%1\"")
+                             .arg(QString::fromLatin1(algoName)));
+}
+
 void SshAbstractCryptoFacility::recreateKeys(const SshKeyExchange &kex)
 {
     checkInvariant();
 
     if (m_sessionId.isEmpty())
         m_sessionId = kex.h();
-    const std::string &cryptAlgo = botanCryptAlgoName(cryptAlgoName(kex));
-    BlockCipher *const cipher =  BlockCipher::create_or_throw(cryptAlgo)->clone();
+   const QByteArray &rfcCryptAlgoName = cryptAlgoName(kex);
+   BlockCipher * const cipher
+               = BlockCipher::create_or_throw(botanCryptAlgoName(rfcCryptAlgoName))->clone();
 
     m_cipherBlockSize = cipher->block_size();
     const QByteArray ivData = generateHash(kex, ivChar(), m_cipherBlockSize);
@@ -89,8 +102,8 @@ void SshAbstractCryptoFacility::recreateKeys(const SshKeyExchange &kex)
     const quint32 keySize = cipher->key_spec().maximum_keylength();
     const QByteArray cryptKeyData = generateHash(kex, keyChar(), keySize);
     SymmetricKey cryptKey(convertByteArray(cryptKeyData), keySize);
-
-    Keyed_Filter * const cipherMode = makeCipherMode(cipher, new Null_Padding, iv, cryptKey);
+    Keyed_Filter * const cipherMode
+            = makeCipherMode(cipher, getMode(rfcCryptAlgoName), iv, cryptKey);
     m_pipe.reset(new Pipe(cipherMode));
 
     m_macLength = botanHMacKeyLen(hMacAlgoName(kex));
@@ -123,6 +136,15 @@ void SshAbstractCryptoFacility::convert(QByteArray &data, quint32 offset,
         throw SshClientException(SshInternalError,
                 QLatin1String("Internal error: Botan::Pipe::read() returned unexpected value"));
     }
+}
+
+Keyed_Filter *SshAbstractCryptoFacility::makeCtrCipherMode(BlockCipher *cipher,
+        const InitializationVector &iv, const SymmetricKey &key)
+{
+    StreamCipher_Filter *filter = new StreamCipher_Filter(new CTR_BE(cipher));
+    filter->set_key(key);
+    filter->set_iv(iv);
+    return filter;
 }
 
 QByteArray SshAbstractCryptoFacility::generateMac(const QByteArray &data,
@@ -174,11 +196,14 @@ QByteArray SshEncryptionFacility::hMacAlgoName(const SshKeyExchange &kex) const
     return kex.hMacAlgoClientToServer();
 }
 
-Keyed_Filter *SshEncryptionFacility::makeCipherMode(BlockCipher *cipher,
-    BlockCipherModePaddingMethod *paddingMethod, const InitializationVector &iv,
-    const SymmetricKey &key)
+Keyed_Filter *SshEncryptionFacility::makeCipherMode(BlockCipher *cipher, Mode mode,
+        const InitializationVector &iv, const SymmetricKey &key)
 {
-    CBC_Encryption *cbc = new CBC_Encryption(cipher, paddingMethod);
+    if (mode == CtrMode) {
+        return makeCtrCipherMode(cipher, iv, key);
+    }
+
+    CBC_Encryption *cbc = new CBC_Encryption(cipher, new Null_Padding);
     Cipher_Mode_Filter *filter = new Cipher_Mode_Filter(cbc);
     filter->set_iv(iv);
     filter->set_key(key);
@@ -371,11 +396,14 @@ QByteArray SshDecryptionFacility::hMacAlgoName(const SshKeyExchange &kex) const
     return kex.hMacAlgoServerToClient();
 }
 
-Keyed_Filter *SshDecryptionFacility::makeCipherMode(BlockCipher *cipher,
-    BlockCipherModePaddingMethod *paddingMethod, const InitializationVector &iv,
+Keyed_Filter *SshDecryptionFacility::makeCipherMode(BlockCipher *cipher, Mode mode, const InitializationVector &iv,
     const SymmetricKey &key)
 {
-    CBC_Decryption *cbc = new CBC_Decryption(cipher, paddingMethod);
+    if (mode == CtrMode) {
+        return makeCtrCipherMode(cipher, iv, key);
+    }
+
+    CBC_Decryption *cbc = new CBC_Decryption(cipher, new Null_Padding);
     Cipher_Mode_Filter *filter = new Cipher_Mode_Filter(cbc);
     filter->set_iv(iv);
     filter->set_key(key);
