@@ -303,7 +303,7 @@ void SshRemoteProcessPrivate::handleOpenSuccessInternal()
    else
        m_sendFacility.sendExecPacket(remoteChannel(), m_command);
    setProcState(ExecRequested);
-   m_timeoutTimer->start(ReplyTimeout);
+   m_timeoutTimer.start(ReplyTimeout);
 }
 
 void SshRemoteProcessPrivate::handleOpenFailureInternal(const QString &reason)
@@ -318,7 +318,7 @@ void SshRemoteProcessPrivate::handleChannelSuccess()
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Unexpected SSH_MSG_CHANNEL_SUCCESS message.");
     }
-    m_timeoutTimer->stop();
+    m_timeoutTimer.stop();
     setProcState(Running);
 }
 
@@ -328,7 +328,7 @@ void SshRemoteProcessPrivate::handleChannelFailure()
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Unexpected SSH_MSG_CHANNEL_FAILURE message.");
     }
-    m_timeoutTimer->stop();
+    m_timeoutTimer.stop();
     setProcState(StartFailed);
     closeChannel();
 }
