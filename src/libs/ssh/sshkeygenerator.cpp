@@ -86,7 +86,7 @@ bool SshKeyGenerator::generateKeys(KeyType type, PrivateKeyFormat format, int ke
             generateOpenSslPublicKeyString(key);
         }
         return true;
-    } catch (Botan::Exception &e) {
+    } catch (const Botan::Exception &e) {
         m_error = tr("Error generating key: %1").arg(QString::fromAscii(e.what()));
         return false;
     }
