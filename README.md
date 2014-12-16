@@ -14,7 +14,7 @@ About QSsh(关于 QSsh)
 
 Prerequisites:(编译环境)
 -------------
-    Qt 5.x (May work with older versions) Qt5系列（4.8系列没有测试，可能可以运行）
+    Qt 5.x Or Qt 4.8.x (May work with older versions) Qt5和Qt4.8.x系列（再低版本可能可以运行，未测试）
 
     On Windows: MinGW 4.7 or later, Visual Studio 2010 or later
 

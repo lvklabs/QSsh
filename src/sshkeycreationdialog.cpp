@@ -1,4 +1,4 @@
-/****************************************************************************
+﻿/****************************************************************************
 **
 ** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
@@ -38,7 +38,7 @@
 #include <QFileInfo>
 #include <QApplication>
 #include <QMessageBox>
-#include <QStandardPaths>
+//#include <QStandardPaths>
 
 namespace QSsh {
 
@@ -52,8 +52,9 @@ SshKeyCreationDialog::SshKeyCreationDialog(QWidget *parent)
 #else
     m_ui->privateKeyFileButton->setText(tr("Browse..."));
 #endif
-    const QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-        + QLatin1String("/.ssh/qtc_id");
+    //const QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+    //    + QLatin1String("/.ssh/qtc_id"); DSBY:更改默认路径到主文件夹下的.ssh目录
+    const QString defaultPath = QDir::homePath() + QLatin1String("/.ssh");
     setPrivateKeyFile(defaultPath);
 
     connect(m_ui->rsa, SIGNAL(toggled(bool)), this, SLOT(keyTypeChanged()));
@@ -142,7 +143,11 @@ void SshKeyCreationDialog::saveKeys()
 
 bool SshKeyCreationDialog::userForbidsOverwriting()
 {
+#if QT_VERSION >= 0x050200
     if (!QFileInfo::exists(privateKeyFilePath()) && !QFileInfo::exists(publicKeyFilePath()))
+#else
+    if (!QFileInfo(privateKeyFilePath()).exists() && !QFileInfo(publicKeyFilePath()).exists())
+#endif
         return false;
     const QMessageBox::StandardButton reply = QMessageBox::question(this, tr("File Exists"),
             tr("There already is a file of that name. Do you want to overwrite it?"),

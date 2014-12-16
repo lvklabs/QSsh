@@ -1,8 +1,3 @@
-QT += gui network
-DEFINES += QSSH_LIBRARY
-
-include(../../qtcreatorlibrary.pri)
-
 SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshremoteprocess.cpp \
     $$PWD/sshpacketparser.cpp \
@@ -68,4 +63,4 @@ HEADERS = $$PWD/sshsendfacility_p.h \
 
 FORMS = $$PWD/sshkeycreationdialog.ui
 
-include(../3rdparty/botan/botan.pri)
+include($$PWD/3rdparty/botan/botan.pri)

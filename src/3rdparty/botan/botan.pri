@@ -35,7 +35,7 @@ win32 {
         BOTAN_HAS_MUTEX_WIN32
 
     win32-msvc* {
-        QMAKE_CXXFLAGS_EXCEPTIONS_ON = -EHs
+#        QMAKE_CXXFLAGS_EXCEPTIONS_ON = -EHs
         QMAKE_CXXFLAGS += -wd4251 -wd4290 -wd4250
         DEFINES += BOTAN_BUILD_COMPILER_IS_MSVC BOTAN_TARGET_OS_HAS_GMTIME_S _SCL_SECURE_NO_WARNINGS
     } else {
@@ -46,12 +46,12 @@ win32 {
 }
 
 unix:*-g++* {
-    QMAKE_CFLAGS += -fPIC -ansi -fpermissive -finline-functions -Wno-long-long
-    QMAKE_CXXFLAGS += -fPIC -ansi -fpermissive -finline-functions -Wno-long-long
+    QMAKE_CFLAGS += -fPIC -fpermissive -finline-functions -Wno-long-long
+    QMAKE_CXXFLAGS += -fPIC -fpermissive -finline-functions -Wno-long-long
     QMAKE_CXXFLAGS_HIDESYMS -= -fvisibility-inlines-hidden # for ubuntu 7.04
 }
 
 linux*|freebsd* {
-    LIBS += -lrt $$QMAKE_LIBS_DYNLOAD
+    LIBS += -lrt
 }
 }
