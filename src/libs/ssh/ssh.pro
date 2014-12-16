@@ -1,17 +1,7 @@
-
-QT += core gui network
-
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-
-
-QSSH_ROOT = $${PWD}/../../..
-DESTDIR   = $${QSSH_ROOT}/lib
-
-TEMPLATE = lib
+QT += gui network
 DEFINES += QSSH_LIBRARY
 
-TARGET  = $$qtLibraryTarget(QSsh)
-#include(../../private_headers.pri)
+include(../../qtcreatorlibrary.pri)
 
 SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshremoteprocess.cpp \

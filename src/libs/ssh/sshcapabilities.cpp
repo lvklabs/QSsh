@@ -10,16 +10,17 @@
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
 ** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** conditions see http://www.qt.io/licensing.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Digia gives you certain additional
 ** rights.  These rights are described in the Digia Qt LGPL Exception
@@ -61,11 +62,19 @@ const QList<QByteArray> SshCapabilities::PublicKeyAlgorithms
     = QList<QByteArray>() << SshCapabilities::PubKeyRsa
           << SshCapabilities::PubKeyDss;
 
-const QByteArray SshCapabilities::CryptAlgo3Des("3des-cbc");
-const QByteArray SshCapabilities::CryptAlgoAes128("aes128-cbc");
+const QByteArray SshCapabilities::CryptAlgo3DesCbc("3des-cbc");
+const QByteArray SshCapabilities::CryptAlgo3DesCtr("3des-ctr");
+const QByteArray SshCapabilities::CryptAlgoAes128Cbc("aes128-cbc");
+const QByteArray SshCapabilities::CryptAlgoAes128Ctr("aes128-ctr");
+const QByteArray SshCapabilities::CryptAlgoAes192Ctr("aes192-ctr");
+const QByteArray SshCapabilities::CryptAlgoAes256Ctr("aes256-ctr");
 const QList<QByteArray> SshCapabilities::EncryptionAlgorithms
-    = QList<QByteArray>() << SshCapabilities::CryptAlgoAes128
-          << SshCapabilities::CryptAlgo3Des;
+    = QList<QByteArray>() << SshCapabilities::CryptAlgoAes256Ctr
+                          << SshCapabilities::CryptAlgoAes192Ctr
+                          << SshCapabilities::CryptAlgoAes128Ctr
+                          << SshCapabilities::CryptAlgo3DesCtr
+                          << SshCapabilities::CryptAlgoAes128Cbc
+                          << SshCapabilities::CryptAlgo3DesCbc;
 
 const QByteArray SshCapabilities::HMacSha1("hmac-sha1");
 const QByteArray SshCapabilities::HMacSha196("hmac-sha1-96");

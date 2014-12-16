@@ -10,16 +10,17 @@
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
 ** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** conditions see http://www.qt.io/licensing.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Digia gives you certain additional
 ** rights.  These rights are described in the Digia Qt LGPL Exception
@@ -302,6 +303,9 @@ void SftpChannelPrivate::handleExitStatus(const SshChannelExitStatus &exitStatus
     qDebug("Remote SFTP service exited with exit code %d", exitStatus.exitStatus);
 #endif
 
+    if (channelState() == CloseRequested || channelState() == Closed)
+        return;
+
     emit channelError(tr("The SFTP server finished unexpectedly with exit code %1.")
                       .arg(exitStatus.exitStatus));
 
@@ -487,29 +491,30 @@ void SftpChannelPrivate::handleMkdirStatus(const JobMap::Iterator &it,
     const SftpStatusResponse &response)
 {
     SftpMakeDir::Ptr op = it.value().staticCast<SftpMakeDir>();
-    if (op->parentJob == SftpUploadDir::Ptr()) {
+    QSharedPointer<SftpUploadDir> parentJob = op->parentJob;
+    if (parentJob == SftpUploadDir::Ptr()) {
         handleStatusGeneric(it, response);
         return;
     }
-    if (op->parentJob->hasError) {
+    if (parentJob->hasError) {
         m_jobs.erase(it);
         return;
     }
 
     typedef QMap<SftpMakeDir::Ptr, SftpUploadDir::Dir>::Iterator DirIt;
-    DirIt dirIt = op->parentJob->mkdirsInProgress.find(op);
-    Q_ASSERT(dirIt != op->parentJob->mkdirsInProgress.end());
+    DirIt dirIt = parentJob->mkdirsInProgress.find(op);
+    Q_ASSERT(dirIt != parentJob->mkdirsInProgress.end());
     const QString &remoteDir = dirIt.value().remoteDir;
     if (response.status == SSH_FX_OK) {
-        emit dataAvailable(op->parentJob->jobId,
-            tr("Created remote directory '%1'.").arg(remoteDir));
+        emit dataAvailable(parentJob->jobId,
+            tr("Created remote directory \"%1\".").arg(remoteDir));
     } else if (response.status == SSH_FX_FAILURE) {
-        emit dataAvailable(op->parentJob->jobId,
-            tr("Remote directory '%1' already exists.").arg(remoteDir));
+        emit dataAvailable(parentJob->jobId,
+            tr("Remote directory \"%1\" already exists.").arg(remoteDir));
     } else {
-        op->parentJob->setError();
-        emit finished(op->parentJob->jobId,
-            tr("Error creating directory '%1': %2")
+        parentJob->setError();
+        emit finished(parentJob->jobId,
+            tr("Error creating directory \"%1\": %2")
             .arg(remoteDir, response.errorString));
         m_jobs.erase(it);
         return;
@@ -521,8 +526,8 @@ void SftpChannelPrivate::handleMkdirStatus(const JobMap::Iterator &it,
     foreach (const QFileInfo &dirInfo, dirInfos) {
         const QString remoteSubDir = remoteDir + QLatin1Char('/') + dirInfo.fileName();
         const SftpMakeDir::Ptr mkdirOp(
-            new SftpMakeDir(++m_nextJobId, remoteSubDir, op->parentJob));
-        op->parentJob->mkdirsInProgress.insert(mkdirOp,
+            new SftpMakeDir(++m_nextJobId, remoteSubDir, parentJob));
+        parentJob->mkdirsInProgress.insert(mkdirOp,
             SftpUploadDir::Dir(dirInfo.absoluteFilePath(), remoteSubDir));
         createJob(mkdirOp);
     }
@@ -531,9 +536,9 @@ void SftpChannelPrivate::handleMkdirStatus(const JobMap::Iterator &it,
     foreach (const QFileInfo &fileInfo, fileInfos) {
         QSharedPointer<QFile> localFile(new QFile(fileInfo.absoluteFilePath()));
         if (!localFile->open(QIODevice::ReadOnly)) {
-            op->parentJob->setError();
-            emit finished(op->parentJob->jobId,
-                tr("Could not open local file '%1': %2")
+            parentJob->setError();
+            emit finished(parentJob->jobId,
+                tr("Could not open local file \"%1\": %2")
                 .arg(fileInfo.absoluteFilePath(), localFile->errorString()));
             m_jobs.erase(it);
             return;
@@ -541,15 +546,15 @@ void SftpChannelPrivate::handleMkdirStatus(const JobMap::Iterator &it,
 
         const QString remoteFilePath = remoteDir + QLatin1Char('/') + fileInfo.fileName();
         SftpUploadFile::Ptr uploadFileOp(new SftpUploadFile(++m_nextJobId,
-            remoteFilePath, localFile, SftpOverwriteExisting, op->parentJob));
+            remoteFilePath, localFile, SftpOverwriteExisting, parentJob));
         createJob(uploadFileOp);
-        op->parentJob->uploadsInProgress.append(uploadFileOp);
+        parentJob->uploadsInProgress.append(uploadFileOp);
     }
 
-    op->parentJob->mkdirsInProgress.erase(dirIt);
-    if (op->parentJob->mkdirsInProgress.isEmpty()
-        && op->parentJob->uploadsInProgress.isEmpty())
-        emit finished(op->parentJob->jobId);
+    parentJob->mkdirsInProgress.erase(dirIt);
+    if (parentJob->mkdirsInProgress.isEmpty()
+        && parentJob->uploadsInProgress.isEmpty())
+        emit finished(parentJob->jobId);
     m_jobs.erase(it);
 }
 

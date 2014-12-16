@@ -10,16 +10,17 @@
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
 ** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** conditions see http://www.qt.io/licensing.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Digia gives you certain additional
 ** rights.  These rights are described in the Digia Qt LGPL Exception
@@ -39,7 +40,10 @@
 namespace QSsh {
 namespace Internal {
 
-const quint32 MinMaxPacketSize = 32768;
+// "Payload length" (RFC 4253, 6.1), i.e. minus packet type, channel number
+// and length field for string.
+const quint32 MinMaxPacketSize = 32768 - sizeof(quint32) - sizeof(quint32) - 1;
+
 const quint32 NoChannel = 0xffffffffu;
 
 AbstractSshChannel::AbstractSshChannel(quint32 channelId,
@@ -133,10 +137,16 @@ void AbstractSshChannel::flushSendBuffer()
 void AbstractSshChannel::handleOpenSuccess(quint32 remoteChannelId,
     quint32 remoteWindowSize, quint32 remoteMaxPacketSize)
 {
-    if (m_state != SessionRequested) {
-       throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
-           "Invalid SSH_MSG_CHANNEL_OPEN_CONFIRMATION packet.");
-   }
+    const ChannelState oldState = m_state;
+    switch (oldState) {
+    case CloseRequested:   // closeChannel() was called while we were in SessionRequested state
+    case SessionRequested:
+        break; // Ok, continue.
+    default:
+        throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
+            "Unexpected SSH_MSG_CHANNEL_OPEN_CONFIRMATION packet.");
+    }
+
     m_timeoutTimer->stop();
 
    if (remoteMaxPacketSize < MinMaxPacketSize) {
@@ -151,18 +161,26 @@ void AbstractSshChannel::handleOpenSuccess(quint32 remoteChannelId,
 #endif
    m_remoteChannel = remoteChannelId;
    m_remoteWindowSize = remoteWindowSize;
-   m_remoteMaxPacketSize = remoteMaxPacketSize - sizeof(quint32) - sizeof m_remoteChannel - 1;
-        // Original value includes packet type, channel number and length field for string.
+   m_remoteMaxPacketSize = remoteMaxPacketSize;
    setChannelState(SessionEstablished);
-   handleOpenSuccessInternal();
+   if (oldState == CloseRequested)
+       closeChannel();
+   else
+       handleOpenSuccessInternal();
 }
 
 void AbstractSshChannel::handleOpenFailure(const QString &reason)
 {
-    if (m_state != SessionRequested) {
-       throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
-           "Invalid SSH_MSG_CHANNEL_OPEN_FAILURE packet.");
-   }
+    switch (m_state) {
+    case SessionRequested:
+        break; // Ok, continue.
+    case CloseRequested:
+        return; // Late server reply; we requested a channel close in the meantime.
+    default:
+        throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
+            "Unexpected SSH_MSG_CHANNEL_OPEN_CONFIRMATION packet.");
+    }
+
     m_timeoutTimer->stop();
 
 #ifdef CREATOR_SSH_DEBUG
@@ -245,8 +263,12 @@ void AbstractSshChannel::closeChannel()
             setChannelState(Closed);
         } else {
             setChannelState(CloseRequested);
-            m_sendFacility.sendChannelEofPacket(m_remoteChannel);
-            m_sendFacility.sendChannelClosePacket(m_remoteChannel);
+            if (m_remoteChannel != NoChannel) {
+                m_sendFacility.sendChannelEofPacket(m_remoteChannel);
+                m_sendFacility.sendChannelClosePacket(m_remoteChannel);
+            } else {
+                QSSH_ASSERT(m_state == SessionRequested);
+            }
         }
     }
 }
