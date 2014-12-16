@@ -31,7 +31,7 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#include <ssh/sshconnection.h>
+#include <sshconnection.h>
 
 struct Parameters {
     QSsh::SshConnectionParameters sshParams;

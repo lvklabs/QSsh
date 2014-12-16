@@ -31,8 +31,8 @@
 #include "argumentscollector.h"
 #include "sftptest.h"
 
-#include <ssh/sftpchannel.h>
-#include <ssh/sshconnection.h>
+#include <sftpchannel.h>
+#include <sshconnection.h>
 
 #include <QCoreApplication>
 #include <QObject>

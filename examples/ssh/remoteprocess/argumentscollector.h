@@ -31,7 +31,7 @@
 #ifndef ARGUMENTSCOLLECTOR_H
 #define ARGUMENTSCOLLECTOR_H
 
-#include <ssh/sshconnection.h>
+#include <sshconnection.h>
 
 #include <QStringList>
 

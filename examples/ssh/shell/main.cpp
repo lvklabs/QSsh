@@ -30,7 +30,7 @@
 #include "../remoteprocess/argumentscollector.h"
 #include "shell.h"
 
-#include <ssh/sshconnection.h>
+#include <sshconnection.h>
 
 #include <QCoreApplication>
 #include <QObject>

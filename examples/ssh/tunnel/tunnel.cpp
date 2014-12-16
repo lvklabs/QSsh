@@ -29,8 +29,8 @@
 ****************************************************************************/
 #include "tunnel.h"
 
-#include <ssh/sshconnection.h>
-#include <ssh/sshdirecttcpiptunnel.h>
+#include <sshconnection.h>
+#include <sshdirecttcpiptunnel.h>
 
 #include <QCoreApplication>
 #include <QTcpServer>

@@ -33,8 +33,8 @@
 
 #include "parameters.h"
 
-#include <ssh/sftpchannel.h>
-#include <ssh/sshconnection.h>
+#include <sftpchannel.h>
+#include <sshconnection.h>
 
 #include <QElapsedTimer>
 #include <QHash>

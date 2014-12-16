@@ -31,7 +31,7 @@
 #ifndef REMOTEPROCESSTEST_H
 #define REMOTEPROCESSTEST_H
 
-#include <ssh/sshremoteprocessrunner.h>
+#include <sshremoteprocessrunner.h>
 
 #include <QObject>
 
