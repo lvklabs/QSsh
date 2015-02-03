@@ -273,10 +273,10 @@ bool SshEncryptionFacility::createAuthenticationKeyFromPKCS8(const QByteArray &p
             qWarning("%s: Unexpected code flow, expected success or exception.", Q_FUNC_INFO);
             return false;
         }
-    } catch (const Botan::Decoding_Error &ex) {
+    } catch (const Decoding_Error &ex) {
         error = QLatin1String(ex.what());
         return false;
-    } catch (const Botan::Exception &ex) {
+    } catch (const Exception &ex) {
         error = QLatin1String(ex.what());
         return false;
     }
@@ -344,10 +344,10 @@ bool SshEncryptionFacility::createAuthenticationKeyFromOpenSSL(const QByteArray 
 
         sequence.discard_remaining();
         sequence.verify_end();
-    } catch (const Botan::Decoding_Error &ex) {
+    } catch (const Decoding_Error &ex) {
         error = QLatin1String(ex.what());
         return false;
-    } catch (const Botan::Exception &ex) {
+    } catch (const Exception &ex) {
         error = QLatin1String(ex.what());
         return false;
     }
