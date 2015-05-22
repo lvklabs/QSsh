@@ -43,6 +43,7 @@
 #include <botan/lookup.h>
 #include <botan/dsa.h>
 #include <botan/rsa.h>
+#include <botan/pk_ops.h>
 
 #ifdef CREATOR_SSH_DEBUG
 #include <iostream>
@@ -168,8 +169,13 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
     concatenatedData += reply.k_s;
     concatenatedData += AbstractSshPacket::encodeMpInt(m_dhKey->get_y());
     concatenatedData += AbstractSshPacket::encodeMpInt(reply.f);
-    const BigInt k = power_mod(reply.f, m_dhKey->get_x(), m_dhKey->get_domain().get_p());
-    m_k = AbstractSshPacket::encodeMpInt(k);
+
+    AutoSeeded_RNG rng;
+    std::unique_ptr<PK_Ops::Key_Agreement> dhOp = m_dhKey->create_key_agreement_op(rng, "Raw", "base");
+    std::vector<byte> encodedF = BigInt::encode(reply.f);
+    SecureVector<byte> encodedK = dhOp->agree(0, encodedF.data(), encodedF.size(), 0, 0);
+    const BigInt k = BigInt::decode(encodedK);
+    m_k = AbstractSshPacket::encodeMpInt(k); // Roundtrip, as Botan encodes BigInts somewhat differently.
     concatenatedData += m_k;
 
     m_hash.reset(HashFunction::create_or_throw(botanSha1Name())->clone());
@@ -192,26 +198,24 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
 #endif // CREATOR_SSH_DEBUG
 
     QScopedPointer<Public_Key> sigKey;
-    QScopedPointer<PK_Verifier> verifier;
     if (m_serverHostKeyAlgo == SshCapabilities::PubKeyDss) {
         const DL_Group group(reply.parameters.at(0), reply.parameters.at(1),
             reply.parameters.at(2));
         DSA_PublicKey * const dsaKey
             = new DSA_PublicKey(group, reply.parameters.at(3));
         sigKey.reset(dsaKey);
-        verifier.reset(new PK_Verifier(*dsaKey, botanEmsaAlgoName(SshCapabilities::PubKeyDss)));
     } else if (m_serverHostKeyAlgo == SshCapabilities::PubKeyRsa) {
         RSA_PublicKey * const rsaKey
             = new RSA_PublicKey(reply.parameters.at(1), reply.parameters.at(0));
         sigKey.reset(rsaKey);
-        verifier.reset(new PK_Verifier(*rsaKey, botanEmsaAlgoName(SshCapabilities::PubKeyRsa)));
     } else {
         Q_ASSERT(!"Impossible: Neither DSS nor RSA!");
     }
     const byte * const botanH = convertByteArray(m_h);
     const Botan::byte * const botanSig
         = convertByteArray(reply.signatureBlob);
-    if (!verifier->verify_message(botanH, m_h.size(), botanSig,
+    PK_Verifier verifier(*sigKey, botanEmsaAlgoName(m_serverHostKeyAlgo));
+    if (!verifier.verify_message(botanH, m_h.size(), botanSig,
         reply.signatureBlob.size())) {
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
             "Invalid signature in SSH_MSG_KEXDH_REPLY packet.");
