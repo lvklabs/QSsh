@@ -36,14 +36,18 @@
 #include <QByteArray>
 #include <QScopedPointer>
 
+#include <memory>
+
 namespace Botan {
 class DH_PrivateKey;
+class ECDH_PrivateKey;
 class HashFunction;
 }
 
 namespace QSsh {
 namespace Internal {
 
+class SshKeyExchangeInit;
 class SshSendFacility;
 class SshIncomingPacket;
 
@@ -63,13 +67,15 @@ public:
 
     QByteArray k() const { return m_k; }
     QByteArray h() const { return m_h; }
-    Botan::HashFunction *hash() const { return m_hash.data(); }
+    Botan::HashFunction *hash() const { return m_hash.get(); }
     QByteArray encryptionAlgo() const { return m_encryptionAlgo; }
     QByteArray decryptionAlgo() const { return m_decryptionAlgo; }
     QByteArray hMacAlgoClientToServer() const { return m_c2sHMacAlgo; }
     QByteArray hMacAlgoServerToClient() const { return m_s2cHMacAlgo; }
 
 private:
+    QByteArray hashAlgoForKexAlgo() const;
+    void determineHashingAlgorithm(const SshKeyExchangeInit &kexInit, bool serverToClient);
     void checkHostKey(const QByteArray &hostKey);
     Q_NORETURN void throwHostKeyException();
 
@@ -77,6 +83,8 @@ private:
     QByteArray m_clientKexInitPayload;
     QByteArray m_serverKexInitPayload;
     QScopedPointer<Botan::DH_PrivateKey> m_dhKey;
+    QScopedPointer<Botan::ECDH_PrivateKey> m_ecdhKey;
+    QByteArray m_kexAlgoName;
     QByteArray m_k;
     QByteArray m_h;
     QByteArray m_serverHostKeyAlgo;
@@ -84,7 +92,7 @@ private:
     QByteArray m_decryptionAlgo;
     QByteArray m_c2sHMacAlgo;
     QByteArray m_s2cHMacAlgo;
-    QScopedPointer<Botan::HashFunction> m_hash;
+    std::unique_ptr<Botan::HashFunction> m_hash;
     const SshConnectionParameters m_connParams;
     SshSendFacility &m_sendFacility;
 };
