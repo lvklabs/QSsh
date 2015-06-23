@@ -30,6 +30,7 @@
 
 #include "sshkeyexchange_p.h"
 
+#include "ssh_global.h"
 #include "sshbotanconversions_p.h"
 #include "sshcapabilities_p.h"
 #include "sshsendfacility_p.h"
@@ -124,28 +125,8 @@ bool SshKeyExchange::sendDhInitPacket(const SshIncomingPacket &serverKexInit)
 
     m_kexAlgoName = SshCapabilities::findBestMatch(SshCapabilities::KeyExchangeMethods,
                                                    kexInitParams.keyAlgorithms.names);
-    const QList<QByteArray> &commonHostKeyAlgos
-            = SshCapabilities::commonCapabilities(SshCapabilities::PublicKeyAlgorithms,
-                                                  kexInitParams.serverHostKeyAlgorithms.names);
-    const bool ecdh = m_kexAlgoName.startsWith(SshCapabilities::EcdhKexNamePrefix);
-    foreach (const QByteArray &possibleHostKeyAlgo, commonHostKeyAlgos) {
-        if (ecdh && possibleHostKeyAlgo == SshCapabilities::PubKeyEcdsa) {
-            m_serverHostKeyAlgo = possibleHostKeyAlgo;
-            break;
-        }
-        if (!ecdh && (possibleHostKeyAlgo == SshCapabilities::PubKeyDss
-                      || possibleHostKeyAlgo == SshCapabilities::PubKeyRsa)) {
-            m_serverHostKeyAlgo = possibleHostKeyAlgo;
-            break;
-        }
-    }
-    if (m_serverHostKeyAlgo.isEmpty()) {
-        throw SshServerException(SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
-            "Invalid combination of key exchange and host key algorithms.",
-            QCoreApplication::translate("SshConnection",
-                "No matching host key algorithm available for key exchange algorithm \"%1\".")
-                .arg(QString::fromLatin1(m_kexAlgoName)));
-    }
+    m_serverHostKeyAlgo = SshCapabilities::findBestMatch(SshCapabilities::PublicKeyAlgorithms,
+            kexInitParams.serverHostKeyAlgorithms.names);
     determineHashingAlgorithm(kexInitParams, true);
     determineHashingAlgorithm(kexInitParams, false);
 
@@ -161,7 +142,7 @@ bool SshKeyExchange::sendDhInitPacket(const SshIncomingPacket &serverKexInit)
         kexInitParams.compressionAlgorithmsServerToClient.names);
 
     AutoSeeded_RNG rng;
-    if (ecdh) {
+    if (m_kexAlgoName.startsWith(SshCapabilities::EcdhKexNamePrefix)) {
         m_ecdhKey.reset(new ECDH_PrivateKey(rng, EC_Group(botanKeyExchangeAlgoName(m_kexAlgoName))));
         m_sendFacility.sendKeyEcdhInitPacket(convertByteArray(m_ecdhKey->public_value()));
     } else {
@@ -178,7 +159,7 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
 {
 
     const SshKeyExchangeReply &reply
-        = dhReply.extractKeyExchangeReply(m_serverHostKeyAlgo);
+        = dhReply.extractKeyExchangeReply(m_kexAlgoName, m_serverHostKeyAlgo);
     if (m_dhKey && (reply.f <= 0 || reply.f >= m_dhKey->group_p())) {
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
             "Server sent invalid f.");
@@ -200,6 +181,7 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
         std::unique_ptr<PK_Ops::Key_Agreement> dhOp = m_dhKey->create_key_agreement_op(rng, "Raw", "base");
         std::vector<byte> encodedF = BigInt::encode(reply.f);
         encodedK = dhOp->agree(0, encodedF.data(), encodedF.size(), 0, 0);
+        m_dhKey.reset();
     } else {
         Q_ASSERT(m_ecdhKey);
         concatenatedData // Q_C.
@@ -208,6 +190,7 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
         std::unique_ptr<PK_Ops::Key_Agreement> ecdhOp = m_ecdhKey->create_key_agreement_op(rng, "Raw", "base");
 
         encodedK = ecdhOp->agree(0, convertByteArray(reply.q_s), reply.q_s.count(), 0, 0);
+        m_ecdhKey.reset();
     }
 
     const BigInt k = BigInt::decode(encodedK);
@@ -243,13 +226,13 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
         RSA_PublicKey * const rsaKey
             = new RSA_PublicKey(reply.parameters.at(1), reply.parameters.at(0));
         sigKey.reset(rsaKey);
-    } else if (m_serverHostKeyAlgo == SshCapabilities::PubKeyEcdsa) {
-        const PointGFp point = OS2ECP(convertByteArray(reply.q), reply.q.count(),
-                                      m_ecdhKey->domain().get_curve());
-        ECDSA_PublicKey * const ecdsaKey = new ECDSA_PublicKey(m_ecdhKey->domain(), point);
-        sigKey.reset(ecdsaKey);
     } else {
-        Q_ASSERT(!"Impossible: Neither DSS nor RSA nor ECDSA!");
+        QSSH_ASSERT_AND_RETURN(m_serverHostKeyAlgo == SshCapabilities::PubKeyEcdsa);
+        const EC_Group domain("secp256r1");
+        const PointGFp point = OS2ECP(convertByteArray(reply.q), reply.q.count(),
+                                      domain.get_curve());
+        ECDSA_PublicKey * const ecdsaKey = new ECDSA_PublicKey(domain, point);
+        sigKey.reset(ecdsaKey);
     }
 
     const byte * const botanH = convertByteArray(m_h);
@@ -263,8 +246,6 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
     checkHostKey(reply.k_s);
 
     m_sendFacility.sendNewKeysPacket();
-    m_dhKey.reset(nullptr);
-    m_ecdhKey.reset(nullptr);
 }
 
 QByteArray SshKeyExchange::hashAlgoForKexAlgo() const
