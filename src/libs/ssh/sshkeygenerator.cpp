@@ -32,6 +32,7 @@
 
 #include "sshbotanconversions_p.h"
 #include "sshcapabilities_p.h"
+#include "ssh_global.h"
 #include "sshinit_p.h"
 #include "sshpacket_p.h"
 
@@ -44,6 +45,7 @@
 #include <botan/pem.h>
 #include <botan/x509cert.h>
 #include <botan/numthry.h>
+#include <botan/ecdsa.h>
 
 #include <QDateTime>
 #include <QInputDialog>
@@ -69,10 +71,19 @@ bool SshKeyGenerator::generateKeys(KeyType type, PrivateKeyFormat format, int ke
     try {
         AutoSeeded_RNG rng;
         KeyPtr key;
-        if (m_type == Rsa)
+        switch (m_type) {
+        case Rsa:
             key = KeyPtr(new RSA_PrivateKey(rng, keySize));
-        else
+            break;
+        case Dsa:
             key = KeyPtr(new DSA_PrivateKey(rng, DL_Group(rng, DL_Group::DSA_Kosherizer, keySize)));
+            break;
+        case Ecdsa: {
+            const QByteArray algo = SshCapabilities::ecdsaPubKeyAlgoForKeyWidth(keySize / 8);
+            key = KeyPtr(new ECDSA_PrivateKey(rng, EC_Group(SshCapabilities::oid(algo))));
+            break;
+        }
+        }
         switch (format) {
         case Pkcs8:
             generatePkcs8KeyStrings(key, rng);
@@ -133,19 +144,35 @@ void SshKeyGenerator::generateOpenSslPublicKeyString(const KeyPtr &key)
 {
     QList<BigInt> params;
     QByteArray keyId;
-    if (m_type == Rsa) {
+    QByteArray q;
+    switch (m_type) {
+    case Rsa: {
         const QSharedPointer<RSA_PrivateKey> rsaKey = key.dynamicCast<RSA_PrivateKey>();
         params << rsaKey->get_e() << rsaKey->get_n();
         keyId = SshCapabilities::PubKeyRsa;
-    } else {
+        break;
+    }
+    case Dsa: {
         const QSharedPointer<DSA_PrivateKey> dsaKey = key.dynamicCast<DSA_PrivateKey>();
         params << dsaKey->group_p() << dsaKey->group_q() << dsaKey->group_g() << dsaKey->get_y();
         keyId = SshCapabilities::PubKeyDss;
+        break;
+    }
+    case Ecdsa: {
+        const auto ecdsaKey = key.dynamicCast<ECDSA_PrivateKey>();
+        q = convertByteArray(EC2OSP(ecdsaKey->public_point(), PointGFp::UNCOMPRESSED));
+        keyId = SshCapabilities::ecdsaPubKeyAlgoForKeyWidth(ecdsaKey->private_value().bytes());
+        break;
+    }
     }
 
     QByteArray publicKeyBlob = AbstractSshPacket::encodeString(keyId);
     foreach (const BigInt &b, params)
         publicKeyBlob += AbstractSshPacket::encodeMpInt(b);
+    if (!q.isEmpty()) {
+        publicKeyBlob += AbstractSshPacket::encodeString(keyId.mid(11)); // Without "ecdsa-sha2-" prefix.
+        publicKeyBlob += AbstractSshPacket::encodeString(q);
+    }
     publicKeyBlob = publicKeyBlob.toBase64();
     const QByteArray id = "QtCreator/"
         + QDateTime::currentDateTime().toString(Qt::ISODate).toUtf8();
@@ -155,9 +182,9 @@ void SshKeyGenerator::generateOpenSslPublicKeyString(const KeyPtr &key)
 void SshKeyGenerator::generateOpenSslPrivateKeyString(const KeyPtr &key)
 {
     QList<BigInt> params;
-    QByteArray keyId;
     const char *label;
-    if (m_type == Rsa) {
+    switch (m_type) {
+    case Rsa: {
         const QSharedPointer<RSA_PrivateKey> rsaKey
             = key.dynamicCast<RSA_PrivateKey>();
         params << rsaKey->get_n() << rsaKey->get_e() << rsaKey->get_d() << rsaKey->get_p()
@@ -166,14 +193,19 @@ void SshKeyGenerator::generateOpenSslPrivateKeyString(const KeyPtr &key)
         const BigInt dmq1 = rsaKey->get_d() % (rsaKey->get_q() - 1);
         const BigInt iqmp = inverse_mod(rsaKey->get_q(), rsaKey->get_p());
         params << dmp1 << dmq1 << iqmp;
-        keyId = SshCapabilities::PubKeyRsa;
         label = "RSA PRIVATE KEY";
-    } else {
+        break;
+    }
+    case Dsa: {
         const QSharedPointer<DSA_PrivateKey> dsaKey = key.dynamicCast<DSA_PrivateKey>();
         params << dsaKey->group_p() << dsaKey->group_q() << dsaKey->group_g() << dsaKey->get_y()
             << dsaKey->get_x();
-        keyId = SshCapabilities::PubKeyDss;
         label = "DSA PRIVATE KEY";
+        break;
+    }
+    case Ecdsa:
+        params << key.dynamicCast<ECDSA_PrivateKey>()->private_value();
+        label = "EC PRIVATE KEY";
     }
 
     DER_Encoder encoder;
