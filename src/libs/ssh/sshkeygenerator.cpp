@@ -182,7 +182,7 @@ void SshKeyGenerator::generateOpenSslPublicKeyString(const KeyPtr &key)
 void SshKeyGenerator::generateOpenSslPrivateKeyString(const KeyPtr &key)
 {
     QList<BigInt> params;
-    const char *label;
+    const char *label = "";
     switch (m_type) {
     case Rsa: {
         const QSharedPointer<RSA_PrivateKey> rsaKey
@@ -206,6 +206,7 @@ void SshKeyGenerator::generateOpenSslPrivateKeyString(const KeyPtr &key)
     case Ecdsa:
         params << key.dynamicCast<ECDSA_PrivateKey>()->private_value();
         label = "EC PRIVATE KEY";
+        break;
     }
 
     DER_Encoder encoder;
