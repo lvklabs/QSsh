@@ -33,6 +33,7 @@
 #include "sshdirecttcpiptunnel_p.h"
 
 #include "sshincomingpacket_p.h"
+#include "sshlogging_p.h"
 #include "sshsendfacility_p.h"
 
 #include <QTimer>
@@ -84,18 +85,18 @@ void SshDirectTcpIpTunnelPrivate::handleChannelDataInternal(const QByteArray &da
 void SshDirectTcpIpTunnelPrivate::handleChannelExtendedDataInternal(quint32 type,
         const QByteArray &data)
 {
-    qDebug("%s: Unexpected extended channel data. Type is %u, content is '%s'.", Q_FUNC_INFO, type,
-           data.constData());
+    qCWarning(sshLog, "%s: Unexpected extended channel data. Type is %u, content is '%s'.",
+              Q_FUNC_INFO, type, data.constData());
 }
 
 void SshDirectTcpIpTunnelPrivate::handleExitStatus(const SshChannelExitStatus &exitStatus)
 {
-    qDebug("%s: Unexpected exit status %d.", Q_FUNC_INFO, exitStatus.exitStatus);
+    qCWarning(sshLog, "%s: Unexpected exit status %d.", Q_FUNC_INFO, exitStatus.exitStatus);
 }
 
 void SshDirectTcpIpTunnelPrivate::handleExitSignal(const SshChannelExitSignal &signal)
 {
-    qDebug("%s: Unexpected exit signal %s.", Q_FUNC_INFO, signal.signal.constData());
+    qCWarning(sshLog, "%s: Unexpected exit signal %s.", Q_FUNC_INFO, signal.signal.constData());
 }
 
 void SshDirectTcpIpTunnelPrivate::closeHook()
@@ -168,7 +169,7 @@ void SshDirectTcpIpTunnel::initialize()
         d->setChannelState(AbstractSshChannel::SessionRequested);
         d->m_timeoutTimer.start(d->ReplyTimeout);
     }  catch (const Botan::Exception &e) { // Won't happen, but let's play it safe.
-        qDebug("Botan error: %s", e.what());
+        qCWarning(sshLog, "Botan error: %s", e.what());
         d->closeChannel();
     }
 }
