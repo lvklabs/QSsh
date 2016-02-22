@@ -174,9 +174,9 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
         std::unique_ptr<PK_Ops::Key_Agreement> dhOp = m_dhKey->create_key_agreement_op(rng, "Raw", "base");
         std::vector<byte> encodedF = BigInt::encode(reply.f);
         encodedK = dhOp->agree(0, encodedF.data(), encodedF.size(), 0, 0);
-        m_dhKey.reset();
         printData("y", AbstractSshPacket::encodeMpInt(m_dhKey->get_y()));
         printData("f", AbstractSshPacket::encodeMpInt(reply.f));
+        m_dhKey.reset();
     } else {
         Q_ASSERT(m_ecdhKey);
         concatenatedData // Q_C.
