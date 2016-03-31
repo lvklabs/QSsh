@@ -46,14 +46,17 @@ class SshConnectionParameters;
 class SshDirectTcpIpTunnel;
 }
 
-class Tunnel : public QObject
+class DirectTunnel : public QObject
 {
     Q_OBJECT
 public:
-    Tunnel(const QSsh::SshConnectionParameters &parameters, QObject *parent = 0);
-    ~Tunnel();
+    DirectTunnel(const QSsh::SshConnectionParameters &parameters, QObject *parent = 0);
+    ~DirectTunnel();
 
     void run();
+
+signals:
+    void finished(int errorCode);
 
 private slots:
     void handleConnected();

@@ -39,6 +39,7 @@ namespace QSsh {
 class SftpChannel;
 class SshDirectTcpIpTunnel;
 class SshRemoteProcess;
+class SshTcpIpForwardServer;
 
 namespace Internal {
 
@@ -55,8 +56,10 @@ public:
     QSharedPointer<SshRemoteProcess> createRemoteProcess(const QByteArray &command);
     QSharedPointer<SshRemoteProcess> createRemoteShell();
     QSharedPointer<SftpChannel> createSftpChannel();
-    QSharedPointer<SshDirectTcpIpTunnel> createTunnel(const QString &originatingHost,
+    QSharedPointer<SshDirectTcpIpTunnel> createDirectTunnel(const QString &originatingHost,
             quint16 originatingPort, const QString &remoteHost, quint16 remotePort);
+    QSharedPointer<SshTcpIpForwardServer> createForwardServer(const QString &remoteHost,
+            quint16 remotePort);
 
     int channelCount() const;
     enum CloseAllMode { CloseAllRegular, CloseAllAndReset };
@@ -73,6 +76,8 @@ public:
     void handleChannelExtendedData(const SshIncomingPacket &packet);
     void handleChannelEof(const SshIncomingPacket &packet);
     void handleChannelClose(const SshIncomingPacket &packet);
+    void handleRequestSuccess(const SshIncomingPacket &packet);
+    void handleRequestFailure(const SshIncomingPacket &packet);
 
 signals:
     void timeout();
@@ -92,6 +97,8 @@ private:
     QHash<quint32, AbstractSshChannel *> m_channels;
     QHash<AbstractSshChannel *, QSharedPointer<QObject> > m_sessions;
     quint32 m_nextLocalChannelId;
+    QList<QSharedPointer<SshTcpIpForwardServer>> m_waitingForwardServers;
+    QList<QSharedPointer<SshTcpIpForwardServer>> m_listeningForwardServers;
 };
 
 } // namespace Internal

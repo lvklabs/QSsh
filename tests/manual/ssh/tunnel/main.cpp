@@ -30,7 +30,8 @@
 **
 **************************************************************************/
 #include "../remoteprocess/argumentscollector.h"
-#include "tunnel.h"
+#include "directtunnel.h"
+#include "forwardtunnel.h"
 
 #include <ssh/sshconnection.h>
 
@@ -45,11 +46,19 @@ int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
     bool parseSuccess;
-    const QSsh::SshConnectionParameters &parameters
+    QSsh::SshConnectionParameters parameters
         = ArgumentsCollector(app.arguments()).collect(parseSuccess);
     if (!parseSuccess)
         return EXIT_FAILURE;
-    Tunnel tunnel(parameters);
-    tunnel.run();
+
+    DirectTunnel direct(parameters);
+
+    parameters.host = QLatin1String("127.0.0.2");
+    ForwardTunnel forward(parameters);
+    forward.run();
+
+    QObject::connect(&forward, &ForwardTunnel::finished, &direct, &DirectTunnel::run);
+    QObject::connect(&direct, &DirectTunnel::finished, &app, &QCoreApplication::exit);
+
     return app.exec();
 }

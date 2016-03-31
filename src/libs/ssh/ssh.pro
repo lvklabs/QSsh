@@ -39,6 +39,9 @@ SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshdirecttcpiptunnel.cpp \
     $$PWD/sshhostkeydatabase.cpp \
     $$PWD/sshlogging.cpp \
+    $$PWD/sshtcpipforwardserver.cpp \
+    $$PWD/sshtcpiptunnel.cpp \
+    $$PWD/sshforwardedtcpiptunnel.cpp \
 
 HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sshremoteprocess.h \
@@ -75,6 +78,11 @@ HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sshinit_p.h \
     $$PWD/sshhostkeydatabase.h \
     $$PWD/sshlogging_p.h \
-    $$PWD/ssh_global.h
+    $$PWD/sshtcpipforwardserver.h \
+    $$PWD/sshtcpipforwardserver_p.h \
+    $$PWD/sshtcpiptunnel_p.h \
+    $$PWD/sshforwardedtcpiptunnel.h \
+    $$PWD/sshforwardedtcpiptunnel_p.h \
+    $$PWD/ssh_global.h \
 
 

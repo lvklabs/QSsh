@@ -103,6 +103,20 @@ struct SshUnimplemented
     quint32 invalidMsgSeqNr;
 };
 
+struct SshRequestSuccess
+{
+    quint32 bindPort;
+};
+
+struct SshChannelOpen
+{
+    quint32 remoteChannel;
+    quint32 remoteWindowSize;
+    quint32 remoteMaxPacketSize;
+    QByteArray remoteAddress;
+    quint32 remotePort;
+};
+
 struct SshChannelOpenFailure
 {
     quint32 localChannel;
@@ -153,7 +167,6 @@ struct SshChannelExitSignal
     QByteArray language;
 };
 
-
 class SshIncomingPacket : public AbstractSshPacket
 {
 public:
@@ -170,8 +183,10 @@ public:
     SshUserAuthBanner extractUserAuthBanner() const;
     SshUserAuthInfoRequestPacket extractUserAuthInfoRequest() const;
     SshDebug extractDebug() const;
+    SshRequestSuccess extractRequestSuccess() const;
     SshUnimplemented extractUnimplemented() const;
 
+    SshChannelOpen extractChannelOpen() const;
     SshChannelOpenFailure extractChannelOpenFailure() const;
     SshChannelOpenConfirmation extractChannelOpenConfirmation() const;
     SshChannelWindowAdjust extractWindowAdjust() const;
@@ -186,6 +201,7 @@ public:
 
     static const QByteArray ExitStatusType;
     static const QByteArray ExitSignalType;
+    static const QByteArray ForwardedTcpIpType;
 
 private:
     virtual quint32 cipherBlockSize() const;
