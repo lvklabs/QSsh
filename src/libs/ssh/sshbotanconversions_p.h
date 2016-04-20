@@ -51,7 +51,7 @@ inline Botan::byte *convertByteArray(QByteArray &a)
 
 inline QByteArray convertByteArray(const Botan::secure_vector<Botan::byte> &v)
 {
-    return QByteArray(reinterpret_cast<const char *>(v.data()), v.size());
+    return QByteArray(reinterpret_cast<const char *>(v.data()), static_cast<int>(v.size()));
 }
 
 inline QByteArray convertByteArray(const std::vector<uint8_t> &v)
