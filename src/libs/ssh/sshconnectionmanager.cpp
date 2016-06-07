@@ -199,7 +199,6 @@ private:
         connection->moveToThread(qobject_cast<QThread *>(threadObj));
     }
 
-private slots:
     void cleanup()
     {
         QMutexLocker locker(&m_listMutex);
