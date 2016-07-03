@@ -5,7 +5,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 QSSH_ROOT = $${PWD}/../..
 DESTDIR   = $${QSSH_ROOT}/examples_bin
 
-INCLUDEPATH += $$PWD/../../src
+INCLUDEPATH += $$PWD/../../include
 CONFIG   += console
 CONFIG   -= app_bundle
 TEMPLATE = app

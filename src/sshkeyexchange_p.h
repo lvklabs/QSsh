@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,46 +9,45 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #ifndef SSHKEYEXCHANGE_P_H
 #define SSHKEYEXCHANGE_P_H
 
+#include "sshconnection.h"
+
 #include <QByteArray>
 #include <QScopedPointer>
 
 namespace Botan {
 class DH_PrivateKey;
+class ECDH_PrivateKey;
 class HashFunction;
 }
 
 namespace QSsh {
 namespace Internal {
 
+struct SshKeyExchangeInit;
 class SshSendFacility;
 class SshIncomingPacket;
 
 class SshKeyExchange
 {
 public:
-    SshKeyExchange(SshSendFacility &sendFacility);
+    SshKeyExchange(const SshConnectionParameters &connParams, SshSendFacility &sendFacility);
     ~SshKeyExchange();
 
     void sendKexInitPacket(const QByteArray &serverId);
@@ -68,10 +67,17 @@ public:
     QByteArray hMacAlgoServerToClient() const { return m_s2cHMacAlgo; }
 
 private:
+    QByteArray hashAlgoForKexAlgo() const;
+    void determineHashingAlgorithm(const SshKeyExchangeInit &kexInit, bool serverToClient);
+    void checkHostKey(const QByteArray &hostKey);
+    Q_NORETURN void throwHostKeyException();
+
     QByteArray m_serverId;
     QByteArray m_clientKexInitPayload;
     QByteArray m_serverKexInitPayload;
     QScopedPointer<Botan::DH_PrivateKey> m_dhKey;
+    QScopedPointer<Botan::ECDH_PrivateKey> m_ecdhKey;
+    QByteArray m_kexAlgoName;
     QByteArray m_k;
     QByteArray m_h;
     QByteArray m_serverHostKeyAlgo;
@@ -80,6 +86,7 @@ private:
     QByteArray m_c2sHMacAlgo;
     QByteArray m_s2cHMacAlgo;
     QScopedPointer<Botan::HashFunction> m_hash;
+    const SshConnectionParameters m_connParams;
     SshSendFacility &m_sendFacility;
 };
 

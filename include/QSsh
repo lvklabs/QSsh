@@ -1,4 +1,5 @@
-﻿#include "ssh/sftpchannel.h"
+﻿#include "ssh/ssh_global.h"
+#include "ssh/sftpchannel.h"
 #include "ssh/sftpdefs.h"
 #include "ssh/sftpfilesystemmodel.h"
 #include "ssh/sshconnection.h"
@@ -10,3 +11,4 @@
 #include "ssh/sshremoteprocessrunner.h"
 #include "ssh/sshdirecttcpiptunnel.h"
 #include "ssh/sshkeycreationdialog.h"
+#include "ssh/sshhostkeydatabase.h"

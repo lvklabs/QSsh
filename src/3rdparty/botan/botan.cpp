@@ -379,7 +379,7 @@ class Mutex
       * Unlock the mutex
       */
       virtual void unlock() = 0;
-      virtual ~Mutex() {}
+      virtual ~Mutex() Q_DECL_NOEXCEPT_EXPR(false) {}
    };
 
 /**
@@ -3296,7 +3296,7 @@ void* MemoryMapping_Allocator::alloc_block(size_t n)
                throw MemoryMapping_Failed("Could not unlink temporary file");
             }
 
-         ~TemporaryFile()
+         ~TemporaryFile() Q_DECL_NOEXCEPT_EXPR(false)
             {
             /*
             * We can safely close here, because post-mmap the file
@@ -44444,7 +44444,7 @@ void ANSI_X931_RNG::add_entropy(const byte input[], size_t length)
    }
 
 /*
-* Check if the the PRNG is seeded
+* Check if the PRNG is seeded
 */
 bool ANSI_X931_RNG::is_seeded() const
    {
@@ -46200,7 +46200,7 @@ bool caseless_cmp(char a, char b)
 #elif defined(BOTAN_BUILD_COMPILER_IS_INTEL)
 
   #include <ia32intrin.h>
-  #define CALL_CPUID(type, out) do { __cpuid(out, type); } while(0)
+  #define CALL_CPUID(type, out) do { __cpuid((int*)out, type); } while(0)
 
 #elif defined(BOTAN_BUILD_COMPILER_IS_GCC) && (BOTAN_GCC_VERSION >= 430)
 
@@ -46223,7 +46223,7 @@ namespace {
 }
 
 #elif defined(BOTAN_TARGET_ARCH_IS_X86_64) && \
-    (defined(BOTAN_BUILD_COMPILER_IS_CLANG) || defined(BOTAN_BUILD_COMPILER_IS_GCC) || defined(BOTAN_BUILD_COMPILER_IS_INTEL))
+    (defined(BOTAN_BUILD_COMPILER_IS_CLANG) || defined(BOTAN_BUILD_COMPILER_IS_GCC))
 
   /*
   * We can't safely use this on x86-32 as some 32-bit ABIs use ebx as

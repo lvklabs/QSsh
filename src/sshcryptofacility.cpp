@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -35,6 +30,7 @@
 #include "sshexception_p.h"
 #include "sshkeyexchange_p.h"
 #include "sshkeypasswordretriever_p.h"
+#include "sshlogging_p.h"
 #include "sshpacket_p.h"
 
 #include <botan/botan.h>
@@ -177,6 +173,8 @@ const QByteArray SshEncryptionFacility::PrivKeyFileStartLineRsa("-----BEGIN RSA 
 const QByteArray SshEncryptionFacility::PrivKeyFileStartLineDsa("-----BEGIN DSA PRIVATE KEY-----");
 const QByteArray SshEncryptionFacility::PrivKeyFileEndLineRsa("-----END RSA PRIVATE KEY-----");
 const QByteArray SshEncryptionFacility::PrivKeyFileEndLineDsa("-----END DSA PRIVATE KEY-----");
+const QByteArray SshEncryptionFacility::PrivKeyFileStartLineEcdsa("-----BEGIN EC PRIVATE KEY-----");
+const QByteArray SshEncryptionFacility::PrivKeyFileEndLineEcdsa("-----END EC PRIVATE KEY-----");
 
 QByteArray SshEncryptionFacility::cryptAlgoName(const SshKeyExchange &kex) const
 {
@@ -210,9 +208,8 @@ void SshEncryptionFacility::createAuthenticationKey(const QByteArray &privKeyFil
     if (privKeyFileContents == m_cachedPrivKeyContents)
         return;
 
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("%s: Key not cached, reading", Q_FUNC_INFO);
-#endif
+    m_authKeyAlgoName.clear();
+    qCDebug(sshLog, "%s: Key not cached, reading", Q_FUNC_INFO);
     QList<BigInt> pubKeyParams;
     QList<BigInt> allKeyParams;
     QString error1;
@@ -220,9 +217,7 @@ void SshEncryptionFacility::createAuthenticationKey(const QByteArray &privKeyFil
     if (!createAuthenticationKeyFromPKCS8(privKeyFileContents, pubKeyParams, allKeyParams, error1)
             && !createAuthenticationKeyFromOpenSSL(privKeyFileContents, pubKeyParams, allKeyParams,
                 error2)) {
-#ifdef CREATOR_SSH_DEBUG
-        qDebug("%s: %s\n\t%s\n", Q_FUNC_INFO, qPrintable(error1), qPrintable(error2));
-#endif
+        qCDebug(sshLog, "%s: %s\n\t%s\n", Q_FUNC_INFO, qPrintable(error1), qPrintable(error2));
         throw SshClientException(SshKeyFileError, SSH_TR("Decoding of private key file failed: "
             "Format not understood."));
     }
@@ -235,8 +230,15 @@ void SshEncryptionFacility::createAuthenticationKey(const QByteArray &privKeyFil
     }
 
     m_authPubKeyBlob = AbstractSshPacket::encodeString(m_authKeyAlgoName);
-    foreach (const BigInt &b, pubKeyParams)
-        m_authPubKeyBlob += AbstractSshPacket::encodeMpInt(b);
+    auto * const ecdsaKey = dynamic_cast<ECDSA_PrivateKey *>(m_authKey.data());
+    if (ecdsaKey) {
+        m_authPubKeyBlob += AbstractSshPacket::encodeString(m_authKeyAlgoName.mid(11)); // Without "ecdsa-sha2-" prefix.
+        m_authPubKeyBlob += AbstractSshPacket::encodeString(
+                    convertByteArray(EC2OSP(ecdsaKey->public_point(), PointGFp::UNCOMPRESSED)));
+    } else {
+        foreach (const BigInt &b, pubKeyParams)
+            m_authPubKeyBlob += AbstractSshPacket::encodeMpInt(b);
+    }
     m_cachedPrivKeyContents = privKeyFileContents;
 }
 
@@ -246,27 +248,32 @@ bool SshEncryptionFacility::createAuthenticationKeyFromPKCS8(const QByteArray &p
     try {
         Pipe pipe;
         pipe.process_msg(convertByteArray(privKeyFileContents), privKeyFileContents.size());
-        Private_Key * const key = PKCS8::load_key(pipe, m_rng, SshKeyPasswordRetriever());
-        if (DSA_PrivateKey * const dsaKey = dynamic_cast<DSA_PrivateKey *>(key)) {
+        m_authKey.reset(PKCS8::load_key(pipe, m_rng, SshKeyPasswordRetriever()));
+        if (auto * const dsaKey = dynamic_cast<DSA_PrivateKey *>(m_authKey.data())) {
             m_authKeyAlgoName = SshCapabilities::PubKeyDss;
-            m_authKey.reset(dsaKey);
             pubKeyParams << dsaKey->group_p() << dsaKey->group_q()
                          << dsaKey->group_g() << dsaKey->get_y();
             allKeyParams << pubKeyParams << dsaKey->get_x();
-        } else if (RSA_PrivateKey * const rsaKey = dynamic_cast<RSA_PrivateKey *>(key)) {
+        } else if (auto * const rsaKey = dynamic_cast<RSA_PrivateKey *>(m_authKey.data())) {
             m_authKeyAlgoName = SshCapabilities::PubKeyRsa;
-            m_authKey.reset(rsaKey);
             pubKeyParams << rsaKey->get_e() << rsaKey->get_n();
             allKeyParams << pubKeyParams << rsaKey->get_p() << rsaKey->get_q()
                          << rsaKey->get_d();
+        } else if (auto * const ecdsaKey = dynamic_cast<ECDSA_PrivateKey *>(m_authKey.data())) {
+            const BigInt value = ecdsaKey->private_value();
+            m_authKeyAlgoName = SshCapabilities::ecdsaPubKeyAlgoForKeyWidth(value.bytes());
+            pubKeyParams << ecdsaKey->public_point().get_affine_x()
+                         << ecdsaKey->public_point().get_affine_y();
+            allKeyParams << pubKeyParams << value;
         } else {
-            qWarning("%s: Unexpected code flow, expected success or exception.", Q_FUNC_INFO);
+            qCWarning(sshLog, "%s: Unexpected code flow, expected success or exception.",
+                      Q_FUNC_INFO);
             return false;
         }
-    } catch (const Botan::Exception &ex) {
+    } catch (const Exception &ex) {
         error = QLatin1String(ex.what());
         return false;
-    } catch (const Botan::Decoding_Error &ex) {
+    } catch (const Decoding_Error &ex) {
         error = QLatin1String(ex.what());
         return false;
     }
@@ -294,6 +301,10 @@ bool SshEncryptionFacility::createAuthenticationKeyFromOpenSSL(const QByteArray 
                 syntaxOk = false;
             else
                 m_authKeyAlgoName = SshCapabilities::PubKeyDss;
+        } else if (lines.first() == PrivKeyFileStartLineEcdsa) {
+            if (lines.last() != PrivKeyFileEndLineEcdsa)
+                syntaxOk = false;
+            // m_authKeyAlgoName set below, as we don't know the size yet.
         } else {
             syntaxOk = false;
         }
@@ -311,8 +322,10 @@ bool SshEncryptionFacility::createAuthenticationKeyFromOpenSSL(const QByteArray 
         BER_Decoder sequence = decoder.start_cons(SEQUENCE);
         size_t version;
         sequence.decode (version);
-        if (version != 0) {
-            error = SSH_TR("Key encoding has version %1, expected 0.").arg(version);
+        const size_t expectedVersion = m_authKeyAlgoName.isEmpty() ? 1 : 0;
+        if (version != expectedVersion) {
+            error = SSH_TR("Key encoding has version %1, expected %2.")
+                    .arg(version).arg(expectedVersion);
             return false;
         }
 
@@ -323,21 +336,31 @@ bool SshEncryptionFacility::createAuthenticationKeyFromOpenSSL(const QByteArray 
             m_authKey.reset(dsaKey);
             pubKeyParams << p << q << g << y;
             allKeyParams << pubKeyParams << x;
-        } else {
+        } else if (m_authKeyAlgoName == SshCapabilities::PubKeyRsa) {
             BigInt p, q, e, d, n;
             sequence.decode(n).decode(e).decode(d).decode(p).decode(q);
             RSA_PrivateKey * const rsaKey = new RSA_PrivateKey(m_rng, p, q, e, d, n);
             m_authKey.reset(rsaKey);
             pubKeyParams << e << n;
             allKeyParams << pubKeyParams << p << q << d;
+        } else {
+            BigInt privKey;
+            sequence.decode_octet_string_bigint(privKey);
+            m_authKeyAlgoName = SshCapabilities::ecdsaPubKeyAlgoForKeyWidth(privKey.bytes());
+            const EC_Group group(SshCapabilities::oid(m_authKeyAlgoName));
+            auto * const key = new ECDSA_PrivateKey(m_rng, group, privKey);
+            m_authKey.reset(key);
+            pubKeyParams << key->public_point().get_affine_x()
+                         << key->public_point().get_affine_y();
+            allKeyParams << pubKeyParams << privKey;
         }
 
         sequence.discard_remaining();
         sequence.verify_end();
-    } catch (const Botan::Exception &ex) {
+    } catch (const Exception &ex) {
         error = QLatin1String(ex.what());
         return false;
-    } catch (const Botan::Decoding_Error &ex) {
+    } catch (const Decoding_Error &ex) {
         error = QLatin1String(ex.what());
         return false;
     }
@@ -360,6 +383,13 @@ QByteArray SshEncryptionFacility::authenticationKeySignature(const QByteArray &d
     QByteArray signature
         = convertByteArray(signer->sign_message(convertByteArray(dataToSign),
               dataToSign.size(), m_rng));
+    if (m_authKeyAlgoName.startsWith(SshCapabilities::PubKeyEcdsaPrefix)) {
+        // The Botan output is not quite in the format that SSH defines.
+        const int halfSize = signature.count() / 2;
+        const BigInt r = BigInt::decode(convertByteArray(signature), halfSize);
+        const BigInt s = BigInt::decode(convertByteArray(signature.mid(halfSize)), halfSize);
+        signature = AbstractSshPacket::encodeMpInt(r) + AbstractSshPacket::encodeMpInt(s);
+    }
     return AbstractSshPacket::encodeString(m_authKeyAlgoName)
         + AbstractSshPacket::encodeString(signature);
 }
@@ -401,13 +431,11 @@ void SshDecryptionFacility::decrypt(QByteArray &data, quint32 offset,
     quint32 dataSize) const
 {
     convert(data, offset, dataSize);
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("Decrypted data:");
+    qCDebug(sshLog, "Decrypted data:");
     const char * const start = data.constData() + offset;
     const char * const end = start + dataSize;
     for (const char *c = start; c < end; ++c)
-        qDebug() << "'" << *c << "' (0x" << (static_cast<int>(*c) & 0xff) << ")";
-#endif
+        qCDebug(sshLog, ) << "'" << *c << "' (0x" << (static_cast<int>(*c) & 0xff) << ")";
 }
 
 } // namespace Internal

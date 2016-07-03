@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,6 +28,7 @@
 
 #include "sshexception_p.h"
 #include "sshincomingpacket_p.h"
+#include "sshlogging_p.h"
 #include "sshsendfacility_p.h"
 
 #include <QDir>
@@ -87,18 +83,18 @@ SftpChannel::SftpChannel(quint32 channelId,
     Internal::SshSendFacility &sendFacility)
     : d(new Internal::SftpChannelPrivate(channelId, sendFacility, this))
 {
-    connect(d, SIGNAL(initialized()), this, SIGNAL(initialized()),
-        Qt::QueuedConnection);
-    connect(d, SIGNAL(channelError(QString)), this,
-        SIGNAL(channelError(QString)), Qt::QueuedConnection);
-    connect(d, SIGNAL(dataAvailable(QSsh::SftpJobId,QString)), this,
-        SIGNAL(dataAvailable(QSsh::SftpJobId,QString)), Qt::QueuedConnection);
-    connect(d, SIGNAL(fileInfoAvailable(QSsh::SftpJobId,QList<QSsh::SftpFileInfo>)), this,
-        SIGNAL(fileInfoAvailable(QSsh::SftpJobId,QList<QSsh::SftpFileInfo>)),
-        Qt::QueuedConnection);
-    connect(d, SIGNAL(finished(QSsh::SftpJobId,QString)), this,
-        SIGNAL(finished(QSsh::SftpJobId,QString)), Qt::QueuedConnection);
-    connect(d, SIGNAL(closed()), this, SIGNAL(closed()), Qt::QueuedConnection);
+    connect(d, &Internal::SftpChannelPrivate::initialized,
+            this, &SftpChannel::initialized, Qt::QueuedConnection);
+    connect(d, &Internal::SftpChannelPrivate::channelError,
+            this, &SftpChannel::channelError, Qt::QueuedConnection);
+    connect(d, &Internal::SftpChannelPrivate::dataAvailable,
+            this, &SftpChannel::dataAvailable, Qt::QueuedConnection);
+    connect(d, &Internal::SftpChannelPrivate::fileInfoAvailable,
+            this, &SftpChannel::fileInfoAvailable, Qt::QueuedConnection);
+    connect(d, &Internal::SftpChannelPrivate::finished,
+            this, &SftpChannel::finished, Qt::QueuedConnection);
+    connect(d, &Internal::SftpChannelPrivate::closed,
+            this, &SftpChannel::closed, Qt::QueuedConnection);
 }
 
 SftpChannel::State SftpChannel::state() const
@@ -256,9 +252,7 @@ void SftpChannelPrivate::handleChannelSuccess()
 {
     if (channelState() == CloseRequested)
         return;
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("sftp subsystem initialized");
-#endif
+    qCDebug(sshLog, "sftp subsystem initialized");
     sendData(m_outgoingPacket.generateInit(ProtocolVersion).rawData());
     m_sftpState = InitSent;
 }
@@ -293,15 +287,13 @@ void SftpChannelPrivate::handleChannelDataInternal(const QByteArray &data)
 void SftpChannelPrivate::handleChannelExtendedDataInternal(quint32 type,
     const QByteArray &data)
 {
-    qWarning("Unexpected extended data '%s' of type %d on SFTP channel.",
-        data.data(), type);
+    qCWarning(sshLog, "Unexpected extended data '%s' of type %d on SFTP channel.",
+              data.data(), type);
 }
 
 void SftpChannelPrivate::handleExitStatus(const SshChannelExitStatus &exitStatus)
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("Remote SFTP service exited with exit code %d", exitStatus.exitStatus);
-#endif
+    qCDebug(sshLog, "Remote SFTP service exited with exit code %d", exitStatus.exitStatus);
 
     if (channelState() == CloseRequested || channelState() == Closed)
         return;
@@ -322,9 +314,7 @@ void SftpChannelPrivate::handleExitSignal(const SshChannelExitSignal &signal)
 
 void SftpChannelPrivate::handleCurrentPacket()
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("Handling SFTP packet of type %d", m_incomingPacket.type());
-#endif
+    qCDebug(sshLog, "Handling SFTP packet of type %d", m_incomingPacket.type());
     switch (m_incomingPacket.type()) {
     case SSH_FXP_VERSION:
         handleServerVersion();
@@ -359,9 +349,7 @@ void SftpChannelPrivate::handleServerVersion()
             "Unexpected SSH_FXP_VERSION packet.");
     }
 
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("sftp init received");
-#endif
+    qCDebug(sshLog, "sftp init received");
     const quint32 serverVersion = m_incomingPacket.extractServerVersion();
     if (serverVersion != ProtocolVersion) {
         emit channelError(tr("Protocol version mismatch: Expected %1, got %2")
@@ -450,9 +438,7 @@ void SftpChannelPrivate::handlePutHandle(const JobMap::Iterator &it)
 void SftpChannelPrivate::handleStatus()
 {
     const SftpStatusResponse &response = m_incomingPacket.asStatusResponse();
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("%s: status = %d", Q_FUNC_INFO, response.status);
-#endif
+    qCDebug(sshLog, "%s: status = %d", Q_FUNC_INFO, response.status);
     JobMap::Iterator it = lookupJob(response.requestId);
     switch (it.value()->type()) {
     case AbstractSftpOperation::ListDir:
@@ -850,9 +836,7 @@ void SftpChannelPrivate::closeHook()
 
 void SftpChannelPrivate::handleOpenSuccessInternal()
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("SFTP session started");
-#endif
+    qCDebug(sshLog, "SFTP session started");
     m_sendFacility.sendSftpPacket(remoteChannel());
     m_sftpState = SubsystemRequested;
 }

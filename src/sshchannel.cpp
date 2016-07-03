@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,28 +9,24 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "sshchannel_p.h"
 
 #include "sshincomingpacket_p.h"
+#include "sshlogging_p.h"
 #include "sshsendfacility_p.h"
 
 #include <botan/botan.h>
@@ -48,13 +44,13 @@ const quint32 NoChannel = 0xffffffffu;
 
 AbstractSshChannel::AbstractSshChannel(quint32 channelId,
     SshSendFacility &sendFacility)
-    : m_sendFacility(sendFacility), m_timeoutTimer(new QTimer(this)),
+    : m_sendFacility(sendFacility),
       m_localChannel(channelId), m_remoteChannel(NoChannel),
       m_localWindowSize(initialWindowSize()), m_remoteWindowSize(0),
       m_state(Inactive)
 {
-    m_timeoutTimer->setSingleShot(true);
-    connect(m_timeoutTimer, SIGNAL(timeout()), this, SIGNAL(timeout()));
+    m_timeoutTimer.setSingleShot(true);
+    connect(&m_timeoutTimer, &QTimer::timeout, this, &AbstractSshChannel::timeout);
 }
 
 AbstractSshChannel::~AbstractSshChannel()
@@ -78,9 +74,9 @@ void AbstractSshChannel::requestSessionStart()
     try {
         m_sendFacility.sendSessionPacket(m_localChannel, initialWindowSize(), maxPacketSize());
         setChannelState(SessionRequested);
-        m_timeoutTimer->start(ReplyTimeout);
-    }  catch (Botan::Exception &e) {
-        qDebug("Botan error: %s", e.what());
+        m_timeoutTimer.start(ReplyTimeout);
+    }  catch (const Botan::Exception &e) {
+        qCWarning(sshLog, "Botan error: %s", e.what());
         closeChannel();
     }
 }
@@ -90,8 +86,8 @@ void AbstractSshChannel::sendData(const QByteArray &data)
     try {
         m_sendBuffer += data;
         flushSendBuffer();
-    }  catch (Botan::Exception &e) {
-        qDebug("Botan error: %s", e.what());
+    }  catch (const Botan::Exception &e) {
+        qCWarning(sshLog, "Botan error: %s", e.what());
         closeChannel();
     }
 }
@@ -147,18 +143,16 @@ void AbstractSshChannel::handleOpenSuccess(quint32 remoteChannelId,
             "Unexpected SSH_MSG_CHANNEL_OPEN_CONFIRMATION packet.");
     }
 
-    m_timeoutTimer->stop();
+    m_timeoutTimer.stop();
 
    if (remoteMaxPacketSize < MinMaxPacketSize) {
        throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
            "Maximum packet size too low.");
    }
 
-#ifdef CREATOR_SSH_DEBUG
-   qDebug("Channel opened. remote channel id: %u, remote window size: %u, "
+   qCDebug(sshLog, "Channel opened. remote channel id: %u, remote window size: %u, "
        "remote max packet size: %u",
        remoteChannelId, remoteWindowSize, remoteMaxPacketSize);
-#endif
    m_remoteChannel = remoteChannelId;
    m_remoteWindowSize = remoteWindowSize;
    m_remoteMaxPacketSize = remoteMaxPacketSize;
@@ -181,11 +175,9 @@ void AbstractSshChannel::handleOpenFailure(const QString &reason)
             "Unexpected SSH_MSG_CHANNEL_OPEN_CONFIRMATION packet.");
     }
 
-    m_timeoutTimer->stop();
+    m_timeoutTimer.stop();
 
-#ifdef CREATOR_SSH_DEBUG
-   qDebug("Channel open request failed for channel %u", m_localChannel);
-#endif
+   qCDebug(sshLog, "Channel open request failed for channel %u", m_localChannel);
    handleOpenFailureInternal(reason);
 }
 
@@ -201,9 +193,7 @@ void AbstractSshChannel::handleChannelEof()
 
 void AbstractSshChannel::handleChannelClose()
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("Receiving CLOSE for channel %u", m_localChannel);
-#endif
+    qCDebug(sshLog, "Receiving CLOSE for channel %u", m_localChannel);
     if (channelState() == Inactive || channelState() == Closed) {
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Unexpected SSH_MSG_CHANNEL_CLOSE message.");
@@ -235,7 +225,7 @@ void AbstractSshChannel::handleChannelRequest(const SshIncomingPacket &packet)
     else if (requestType == SshIncomingPacket::ExitSignalType)
         handleExitSignal(packet.extractChannelExitSignal());
     else if (requestType != "eow@openssh.com") // Suppress warning for this one, as it's sent all the time.
-        qWarning("Ignoring unknown request type '%s'", requestType.data());
+        qCWarning(sshLog, "Ignoring unknown request type '%s'", requestType.data());
 }
 
 int AbstractSshChannel::handleChannelOrExtendedChannelData(const QByteArray &data)
@@ -244,7 +234,7 @@ int AbstractSshChannel::handleChannelOrExtendedChannelData(const QByteArray &dat
 
     const int bytesToDeliver = qMin<quint32>(data.size(), maxDataSize());
     if (bytesToDeliver != data.size())
-        qWarning("Misbehaving server does not respect local window, clipping.");
+        qCWarning(sshLog, "Misbehaving server does not respect local window, clipping.");
 
     m_localWindowSize -= bytesToDeliver;
     if (m_localWindowSize < maxPacketSize()) {
@@ -257,17 +247,18 @@ int AbstractSshChannel::handleChannelOrExtendedChannelData(const QByteArray &dat
 void AbstractSshChannel::closeChannel()
 {
     if (m_state == CloseRequested) {
-        m_timeoutTimer->stop();
+        m_timeoutTimer.stop();
     } else if (m_state != Closed) {
         if (m_state == Inactive) {
             setChannelState(Closed);
         } else {
+            const ChannelState oldState = m_state;
             setChannelState(CloseRequested);
             if (m_remoteChannel != NoChannel) {
                 m_sendFacility.sendChannelEofPacket(m_remoteChannel);
                 m_sendFacility.sendChannelClosePacket(m_remoteChannel);
             } else {
-                QSSH_ASSERT(m_state == SessionRequested);
+                QSSH_ASSERT(oldState == SessionRequested);
             }
         }
     }

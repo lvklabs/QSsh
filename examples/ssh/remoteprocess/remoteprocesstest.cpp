@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,28 +9,23 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "remoteprocesstest.h"
 
-#include <sshpseudoterminal.h>
+#include <ssh/sshpseudoterminal.h>
 
 #include <QCoreApplication>
 #include <QTextStream>
@@ -82,19 +77,18 @@ void RemoteProcessTest::handleConnectionError()
         ? m_sshConnection->errorString() : m_remoteRunner->lastConnectionErrorString();
 
     std::cerr << "Error: Connection failure (" << qPrintable(error) << ")." << std::endl;
-    qApp->quit();
+    qApp->exit(EXIT_FAILURE);
 }
 
 void RemoteProcessTest::handleProcessStarted()
 {
     if (m_started) {
         std::cerr << "Error: Received started() signal again." << std::endl;
-        qApp->quit();
+        qApp->exit(EXIT_FAILURE);
     } else {
         m_started = true;
         if (m_state == TestingCrash) {
-            QSsh::SshRemoteProcessRunner * const killer
-                = new QSsh::SshRemoteProcessRunner(this);
+            SshRemoteProcessRunner * const killer = new SshRemoteProcessRunner(this);
             killer->run("pkill -9 sleep", m_sshParams);
         } else if (m_state == TestingIoDevice) {
             connect(m_catProcess.data(), SIGNAL(readyRead()), SLOT(handleReadyRead()));
@@ -110,11 +104,11 @@ void RemoteProcessTest::handleProcessStdout()
     if (!m_started) {
         std::cerr << "Error: Remote output from non-started process."
             << std::endl;
-        qApp->quit();
+        qApp->exit(EXIT_FAILURE);
     } else if (m_state != TestingSuccess && m_state != TestingTerminal) {
         std::cerr << "Error: Got remote standard output in state " << m_state
             << "." << std::endl;
-        qApp->quit();
+        qApp->exit(EXIT_FAILURE);
     } else {
         m_remoteStdout += m_remoteRunner->readAllStandardOutput();
     }
@@ -125,11 +119,11 @@ void RemoteProcessTest::handleProcessStderr()
     if (!m_started) {
         std::cerr << "Error: Remote error output from non-started process."
             << std::endl;
-        qApp->quit();
+        qApp->exit(EXIT_FAILURE);
     } else if (m_state == TestingSuccess) {
         std::cerr << "Error: Unexpected remote standard error output."
             << std::endl;
-        qApp->quit();
+        qApp->exit(EXIT_FAILURE);
     } else {
         m_remoteStderr += m_remoteRunner->readAllStandardError();
     }
@@ -141,7 +135,7 @@ void RemoteProcessTest::handleProcessClosed(int exitStatus)
     case SshRemoteProcess::NormalExit:
         if (!m_started) {
             std::cerr << "Error: Process exited without starting." << std::endl;
-            qApp->quit();
+            qApp->exit(EXIT_FAILURE);
             return;
         }
         switch (m_state) {
@@ -150,13 +144,13 @@ void RemoteProcessTest::handleProcessClosed(int exitStatus)
             if (exitCode != 0) {
                 std::cerr << "Error: exit code is " << exitCode
                     << ", expected zero." << std::endl;
-                qApp->quit();
+                qApp->exit(EXIT_FAILURE);
                 return;
             }
             if (m_remoteStdout.isEmpty()) {
                 std::cerr << "Error: Command did not produce output."
                     << std::endl;
-                qApp->quit();
+                qApp->exit(EXIT_FAILURE);
                 return;
             }
 
@@ -172,12 +166,12 @@ void RemoteProcessTest::handleProcessClosed(int exitStatus)
             if (exitCode == 0) {
                 std::cerr << "Error: exit code is zero, expected non-zero."
                     << std::endl;
-                qApp->quit();
+                qApp->exit(EXIT_FAILURE);
                 return;
             }
             if (m_remoteStderr.isEmpty()) {
                 std::cerr << "Error: Command did not produce error output." << std::flush;
-                qApp->quit();
+                qApp->exit(EXIT_FAILURE);
                 return;
             }
 
@@ -192,7 +186,7 @@ void RemoteProcessTest::handleProcessClosed(int exitStatus)
             if (m_remoteRunner->processExitCode() == 0) {
                 std::cerr << "Error: Successful exit from process that was "
                     "supposed to crash." << std::endl;
-                qApp->quit();
+                qApp->exit(EXIT_FAILURE);
             } else {
                 // Some shells (e.g. mksh) don't report "killed", but just a non-zero exit code.
                 handleSuccessfulCrashTest();
@@ -203,18 +197,18 @@ void RemoteProcessTest::handleProcessClosed(int exitStatus)
             if (exitCode != 0) {
                 std::cerr << "Error: exit code is " << exitCode
                     << ", expected zero." << std::endl;
-                qApp->quit();
+                qApp->exit(EXIT_FAILURE);
                 return;
             }
             if (m_remoteStdout.isEmpty()) {
                 std::cerr << "Error: Command did not produce output."
                     << std::endl;
-                qApp->quit();
+                qApp->exit(EXIT_FAILURE);
                 return;
             }
             std::cout << "Ok.\nTesting I/O device functionality... " << std::flush;
             m_state = TestingIoDevice;
-            m_sshConnection = new QSsh::SshConnection(m_sshParams);
+            m_sshConnection = new SshConnection(m_sshParams);
             connect(m_sshConnection, SIGNAL(connected()), SLOT(handleConnected()));
             connect(m_sshConnection, SIGNAL(error(QSsh::SshError)),
                 SLOT(handleConnectionError()));
@@ -257,7 +251,7 @@ void RemoteProcessTest::handleProcessClosed(int exitStatus)
         } else {
             std::cerr << "Error: Process failed to start." << std::endl;
         }
-        qApp->quit();
+        qApp->exit(EXIT_FAILURE);
         break;
     case SshRemoteProcess::CrashExit:
         switch (m_state) {
@@ -269,7 +263,7 @@ void RemoteProcessTest::handleProcessClosed(int exitStatus)
             break;
         default:
             std::cerr << "Error: Unexpected crash." << std::endl;
-            qApp->quit();
+            qApp->exit(EXIT_FAILURE);
             return;
         }
     }
@@ -278,7 +272,7 @@ void RemoteProcessTest::handleProcessClosed(int exitStatus)
 void RemoteProcessTest::handleTimeout()
 {
     std::cerr << "Error: Timeout waiting for progress." << std::endl;
-    qApp->quit();
+    qApp->exit(EXIT_FAILURE);
 }
 
 void RemoteProcessTest::handleConnected()
@@ -306,9 +300,9 @@ void RemoteProcessTest::handleReadyRead()
         if (data != testString()) {
             std::cerr << "Testing of QIODevice functionality failed: Expected '"
                 << qPrintable(testString()) << "', got '" << qPrintable(data) << "'." << std::endl;
-            qApp->exit(1);
+            qApp->exit(EXIT_FAILURE);
         }
-        QSsh::SshRemoteProcessRunner * const killer = new QSsh::SshRemoteProcessRunner(this);
+        SshRemoteProcessRunner * const killer = new SshRemoteProcessRunner(this);
         killer->run("pkill -9 cat", m_sshParams);
         break;
     }

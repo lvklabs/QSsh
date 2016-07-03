@@ -1,7 +1,7 @@
-﻿/****************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,24 +9,20 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
+
 #include "sshkeycreationdialog.h"
 #include "ui_sshkeycreationdialog.h"
 
@@ -38,7 +34,7 @@
 #include <QFileInfo>
 #include <QApplication>
 #include <QMessageBox>
-//#include <QStandardPaths>
+#include <QStandardPaths>
 
 namespace QSsh {
 
@@ -52,15 +48,19 @@ SshKeyCreationDialog::SshKeyCreationDialog(QWidget *parent)
 #else
     m_ui->privateKeyFileButton->setText(tr("Browse..."));
 #endif
-    //const QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-    //    + QLatin1String("/.ssh/qtc_id"); DSBY:更改默认路径到主文件夹下的.ssh目录
-    const QString defaultPath = QDir::homePath() + QLatin1String("/.ssh");
+    const QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+        + QLatin1String("/.ssh/qtc_id");
     setPrivateKeyFile(defaultPath);
 
-    connect(m_ui->rsa, SIGNAL(toggled(bool)), this, SLOT(keyTypeChanged()));
-    connect(m_ui->dsa, SIGNAL(toggled(bool)), this, SLOT(keyTypeChanged()));
-    connect(m_ui->privateKeyFileButton, SIGNAL(clicked()), SLOT(handleBrowseButtonClicked()));
-    connect(m_ui->generateButton, SIGNAL(clicked()), this, SLOT(generateKeys()));
+    connect(m_ui->rsa, &QRadioButton::toggled,
+            this, &SshKeyCreationDialog::keyTypeChanged);
+    connect(m_ui->dsa, &QRadioButton::toggled,
+            this, &SshKeyCreationDialog::keyTypeChanged);
+    connect(m_ui->privateKeyFileButton, &QPushButton::clicked,
+            this, &SshKeyCreationDialog::handleBrowseButtonClicked);
+    connect(m_ui->generateButton, &QPushButton::clicked,
+            this, &SshKeyCreationDialog::generateKeys);
+    keyTypeChanged();
 }
 
 SshKeyCreationDialog::~SshKeyCreationDialog()
@@ -71,8 +71,16 @@ SshKeyCreationDialog::~SshKeyCreationDialog()
 
 void SshKeyCreationDialog::keyTypeChanged()
 {
-    m_ui->comboBox->setCurrentIndex(0);
-    m_ui->comboBox->setEnabled(m_ui->rsa->isChecked());
+    m_ui->comboBox->clear();
+    QStringList keySizes;
+    if (m_ui->rsa->isChecked())
+        keySizes << QLatin1String("1024") << QLatin1String("2048") << QLatin1String("4096");
+    else if (m_ui->ecdsa->isChecked())
+        keySizes << QLatin1String("256") << QLatin1String("384") << QLatin1String("521");
+    m_ui->comboBox->addItems(keySizes);
+    if (!keySizes.isEmpty())
+        m_ui->comboBox->setCurrentIndex(0);
+    m_ui->comboBox->setEnabled(!keySizes.isEmpty());
 }
 
 void SshKeyCreationDialog::generateKeys()
@@ -81,8 +89,8 @@ void SshKeyCreationDialog::generateKeys()
         return;
 
     const SshKeyGenerator::KeyType keyType = m_ui->rsa->isChecked()
-        ? SshKeyGenerator::Rsa
-        : SshKeyGenerator::Dsa;
+            ? SshKeyGenerator::Rsa : m_ui->dsa->isChecked()
+            ? SshKeyGenerator::Dsa : SshKeyGenerator::Ecdsa;
 
     if (!m_keyGenerator)
         m_keyGenerator = new SshKeyGenerator;
@@ -143,11 +151,7 @@ void SshKeyCreationDialog::saveKeys()
 
 bool SshKeyCreationDialog::userForbidsOverwriting()
 {
-#if QT_VERSION >= 0x050200
     if (!QFileInfo::exists(privateKeyFilePath()) && !QFileInfo::exists(publicKeyFilePath()))
-#else
-    if (!QFileInfo(privateKeyFilePath()).exists() && !QFileInfo(publicKeyFilePath()).exists())
-#endif
         return false;
     const QMessageBox::StandardButton reply = QMessageBox::question(this, tr("File Exists"),
             tr("There already is a file of that name. Do you want to overwrite it?"),

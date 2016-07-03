@@ -16,6 +16,9 @@
 #include <botan/dh.h>
 #include <botan/dl_group.h>
 #include <botan/dsa.h>
+#include <botan/ec_group.h>
+#include <botan/ecdh.h>
+#include <botan/ecdsa.h>
 #include <botan/hmac.h>
 #include <botan/init.h>
 #include <botan/lookup.h>
@@ -387,7 +390,7 @@ class BOTAN_DLL Allocator
       */
       virtual void destroy() {}
 
-      virtual ~Allocator() {}
+      virtual ~Allocator() Q_DECL_NOEXCEPT_EXPR(false) {}
    };
 
 }
