@@ -14,7 +14,7 @@ About QSsh(关于 QSsh)
 
 Prerequisites:(编译环境)
 -------------
-    Qt 5.x Or Qt 4.8.x (May work with older versions) Qt5和Qt4.8.x系列（再低版本可能可以运行，未测试）
+    Qt 5.x 
 
     On Windows: MinGW 4.7 or later, Visual Studio 2010 or later
 
@@ -41,11 +41,6 @@ Compiling QSsh(编译QSsh)
 
 Examples
 ===========
-
-- Directory examples/SecureUploader/ contains an example on how to upload a file using SFTP
-
-- Directory examples/qtsshshell/ 一个sshShell的例子
- 
 - Directory examples/ssh/  Qt-Creator下自带的例子。
  
 > 注：生成的库在 lib文件夹下就可以直接用的。
