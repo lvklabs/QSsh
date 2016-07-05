@@ -2,5 +2,6 @@ TEMPLATE  = subdirs
 CONFIG   += ordered
 
 SUBDIRS = \
-    SecureUploader
+	ssh
+	
 
