@@ -36,7 +36,7 @@ namespace QSsh {
 enum SshError {
     SshNoError, SshSocketError, SshTimeoutError, SshProtocolError,
     SshHostKeyError, SshKeyFileError, SshAuthenticationError,
-    SshClosedByServerError, SshInternalError
+    SshClosedByServerError, SshAgentError, SshInternalError
 };
 
 } // namespace QSsh

@@ -55,6 +55,8 @@ public:
     void recreateKeys(const SshKeyExchange &keyExchange);
     void createAuthenticationKey(const QByteArray &privKeyFileContents);
 
+    QByteArray sessionId() const { return m_encrypter.sessionId(); }
+
     QByteArray sendKeyExchangeInitPacket();
     void sendKeyDhInitPacket(const Botan::BigInt &e);
     void sendKeyEcdhInitPacket(const QByteArray &clientQ);
@@ -66,7 +68,9 @@ public:
     void sendUserAuthByPasswordRequestPacket(const QByteArray &user,
         const QByteArray &service, const QByteArray &pwd);
     void sendUserAuthByPublicKeyRequestPacket(const QByteArray &user,
-        const QByteArray &service);
+        const QByteArray &service, const QByteArray &key, const QByteArray &signature);
+    void sendQueryPublicKeyPacket(const QByteArray &user, const QByteArray &service,
+                                  const QByteArray &publicKey);
     void sendUserAuthByKeyboardInteractiveRequestPacket(const QByteArray &user,
         const QByteArray &service);
     void sendUserAuthInfoResponsePacket(const QStringList &responses);
