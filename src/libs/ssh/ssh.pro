@@ -1,7 +1,7 @@
 TEMPLATE = lib
 TARGET = QSsh
 QT += network
-DEFINES += QSSH_LIBRARY
+DEFINES += QTCSSH_LIBRARY
 
 LIBS += -lbotan-2
 
