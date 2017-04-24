@@ -60,7 +60,7 @@ void Shell::run()
 {
     if (!m_stdin->open(stdin, QIODevice::ReadOnly | QIODevice::Unbuffered)) {
         std::cerr << "Error: Cannot read from standard input." << std::endl;
-        qApp->exit(EXIT_FAILURE);
+        QCoreApplication::exit(EXIT_FAILURE);
         return;
     }
 
@@ -70,7 +70,7 @@ void Shell::run()
 void Shell::handleConnectionError()
 {
     std::cerr << "SSH connection error: " << qPrintable(m_connection->errorString()) << std::endl;
-    qApp->exit(EXIT_FAILURE);
+    QCoreApplication::exit(EXIT_FAILURE);
 }
 
 void Shell::handleShellMessage(const QString &message)
@@ -108,7 +108,7 @@ void Shell::handleChannelClosed(int exitStatus)
 {
     std::cerr << "Shell closed. Exit status was " << exitStatus << ", exit code was "
         << m_shell->exitCode() << "." << std::endl;
-    qApp->exit(exitStatus == SshRemoteProcess::NormalExit && m_shell->exitCode() == 0
+    QCoreApplication::exit(exitStatus == SshRemoteProcess::NormalExit && m_shell->exitCode() == 0
         ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 

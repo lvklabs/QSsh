@@ -113,5 +113,5 @@ void SftpFsWindow::handleConnectionError(const QString &errorMessage)
 {
     QMessageBox::warning(this, tr("Connection Error"),
         tr("Fatal SSH error: %1").arg(errorMessage));
-    qApp->quit();
+    QCoreApplication::quit();
 }
