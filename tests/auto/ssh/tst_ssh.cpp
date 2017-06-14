@@ -30,6 +30,8 @@
 #include <ssh/sshpseudoterminal.h>
 #include <ssh/sshremoteprocessrunner.h>
 #include <ssh/sshtcpipforwardserver.h>
+#include <ssh/sshx11displayinfo_p.h>
+#include <ssh/sshx11inforetriever_p.h>
 
 #include <QDateTime>
 #include <QDir>
@@ -152,6 +154,8 @@ private slots:
     void remoteProcessChannels();
     void remoteProcessInput();
     void sftp();
+    void x11InfoRetriever_data();
+    void x11InfoRetriever();
 
 private:
     bool waitForConnection(SshConnection &connection);
@@ -824,6 +828,246 @@ void tst_Ssh::sftp()
     QVERIFY(!invalidFinishedSignal);
     QVERIFY2(jobError.isEmpty(), qPrintable(jobError));
     QCOMPARE(sftpChannel->state(), SftpChannel::Closed);
+}
+
+static QStringList appendExeExtensions(const QString &executable)
+{
+    QStringList execs(executable);
+    const QFileInfo fi(executable);
+
+#ifdef Q_OS_WIN
+    // Check all the executable extensions on windows:
+    // PATHEXT is only used if the executable has no extension
+    if (fi.suffix().isEmpty()) {
+        const QStringList extensions = value("PATHEXT").split(';');
+
+        for (const QString &ext : extensions)
+            execs << executable + ext.toLower();
+    }
+#endif
+
+    return execs;
+}
+
+/** Expand environment variables in a string.
+ *
+ * Environment variables are accepted in the following forms:
+ * $SOMEVAR, ${SOMEVAR} on Unix and %SOMEVAR% on Windows.
+ * No escapes and quoting are supported.
+ * If a variable is not found, it is not substituted.
+ */
+static QString expandVariables(const QString &input)
+{
+    QString result = input;
+
+#ifdef Q_OS_WIN
+    for (int vStart = -1, i = 0; i < result.length(); ) {
+        if (result.at(i++) == '%') {
+            if (vStart > 0) {
+                const QByteArray varName = result.mid(vStart, i - vStart - 1).toLocal8Bit();
+                if (qEnvironmentVariableIsSet(varName.constData())) {
+                    const QByteArray varValue = qgetenv(varName.constData());
+                    result.replace(vStart - 1, i - vStart + 1, varValue);
+                    i = vStart - 1 + varValue.length();
+                    vStart = -1;
+                } else {
+                    vStart = i;
+                }
+            } else {
+                vStart = i;
+            }
+        }
+    }
+#else//Q_OS_WIN
+    enum { BASE, OPTIONALVARIABLEBRACE, VARIABLE, BRACEDVARIABLE } state = BASE;
+    int vStart = -1;
+
+    for (int i = 0; i < result.length();) {
+        QChar c = result.at(i++);
+        if (state == BASE) {
+            if (c == '$')
+                state = OPTIONALVARIABLEBRACE;
+        } else if (state == OPTIONALVARIABLEBRACE) {
+            if (c == '{') {
+                state = BRACEDVARIABLE;
+                vStart = i;
+            } else if (c.isLetterOrNumber() || c == '_') {
+                state = VARIABLE;
+                vStart = i - 1;
+            } else {
+                state = BASE;
+            }
+        } else if (state == BRACEDVARIABLE) {
+            if (c == '}') {
+                const QByteArray varName = result.mid(vStart, i - 1 - vStart).toLocal8Bit();
+                if (qEnvironmentVariableIsSet(varName.constData())) {
+                    const QByteArray varValue = qgetenv(varName.constData());
+                    result.replace(vStart - 2, i - vStart + 2, varValue);
+                    i = vStart - 2 + varValue.length();
+                }
+                state = BASE;
+            }
+        } else if (state == VARIABLE) {
+            if (!c.isLetterOrNumber() && c != '_') {
+                const QByteArray varName = result.mid(vStart, i - vStart - 1).toLocal8Bit();
+                if (qEnvironmentVariableIsSet(varName.constData())) {
+                    const QByteArray varValue = qgetenv(varName.constData());
+                    result.replace(vStart - 1, i - vStart, varValue);
+                    i = vStart - 1 + varValue.length();
+                }
+                state = BASE;
+            }
+        }
+    }
+
+    if (state == VARIABLE) {
+        const QByteArray varName = result.mid(vStart).toLocal8Bit();
+        if (qEnvironmentVariableIsSet(varName.constData())) {
+            result.replace(vStart - 1, result.length() - vStart + 1, qgetenv(varName.constData()));
+        }
+    }
+#endif//Q_OS_WIN
+
+    return result;
+}
+
+/// Constructs a FileName from \a fileName
+/// \a fileName is only passed through QDir::cleanPath
+static QFileInfo fromUserInput(const QString &filename)
+{
+    QString clean = QDir::cleanPath(filename);
+    if (clean.startsWith(QLatin1String("~/")))
+        clean = QDir::homePath() + clean.mid(1);
+    return QFileInfo(clean);
+}
+
+static QFileInfoList systemPath()
+{
+#ifdef Q_OS_WIN
+    const QChar separator = ';';
+#else
+    const QChar separator = ':';
+#endif
+
+    const QStringList pathComponents = QString::fromLocal8Bit(qgetenv("PATH"))
+            .split(separator, QString::SkipEmptyParts);
+
+    QFileInfoList ret;
+    for (const QString &component : pathComponents) {
+        ret.append(fromUserInput(component));
+    }
+
+    return ret;
+}
+
+
+static QFileInfo searchInDirectory(const QStringList &execs, const QFileInfo &directory,
+                                        QSet<QString> &alreadyChecked)
+{
+    const int checkedCount = alreadyChecked.count();
+    alreadyChecked.insert(directory.canonicalPath());
+
+    if (!directory.isDir() || alreadyChecked.count() == checkedCount)
+        return QFileInfo();
+
+    const QString dir = directory.canonicalPath();
+
+    QFileInfo fi;
+    for (const QString &exec : execs) {
+        fi.setFile(dir, exec);
+        if (fi.isFile() && fi.isExecutable())
+            return fi.absoluteFilePath();
+    }
+    return QFileInfo();
+}
+
+
+static QFileInfo searchInPath(const QString &executable)
+{
+    if (executable.isEmpty())
+        return QFileInfo();
+
+    const QString exec = QDir::cleanPath(expandVariables(executable));
+    const QFileInfo fi(exec);
+
+    const QStringList execs = appendExeExtensions(exec);
+
+    if (fi.isAbsolute()) {
+        for (const QString &path : execs) {
+            QFileInfo pfi = QFileInfo(path);
+            if (pfi.isFile() && pfi.isExecutable())
+                return QFileInfo(path);
+        }
+        return QFileInfo(exec);
+    }
+
+    QSet<QString> alreadyChecked;
+
+    if (executable.contains('/'))
+        return QFileInfo();
+
+    for (const QFileInfo &p : systemPath()) {
+        QFileInfo tmp = searchInDirectory(execs, p, alreadyChecked);
+        if (tmp.exists()) {
+            return tmp;
+        }
+    }
+    return QFileInfo();
+}
+
+void tst_Ssh::x11InfoRetriever_data()
+{
+    QTest::addColumn<QString>("displayName");
+    QTest::addColumn<bool>("successExpected");
+
+    const QFileInfo xauthCommand = searchInPath("xauth");
+    const QString displayName = QLatin1String(qgetenv("DISPLAY"));
+    const bool canSucceed = xauthCommand.exists() && !displayName.isEmpty();
+    QTest::newRow(canSucceed ? "suitable host" : "unsuitable host") << displayName << canSucceed;
+    QTest::newRow("invalid display name") << QString("dummy") << false;
+}
+
+void tst_Ssh::x11InfoRetriever()
+{
+    QFETCH(QString, displayName);
+    QFETCH(bool, successExpected);
+    using namespace QSsh::Internal;
+    SshX11InfoRetriever x11InfoRetriever(displayName);
+    QEventLoop loop;
+    bool success;
+    X11DisplayInfo displayInfo;
+    QString errorMessage;
+    const auto successHandler = [&loop, &success, &displayInfo](const X11DisplayInfo &di) {
+        success = true;
+        displayInfo = di;
+        loop.quit();
+    };
+    connect(&x11InfoRetriever, &SshX11InfoRetriever::success, successHandler);
+    const auto failureHandler = [&loop, &success, &errorMessage](const QString &error) {
+        success = false;
+        errorMessage = error;
+        loop.quit();
+    };
+    connect(&x11InfoRetriever, &SshX11InfoRetriever::failure, failureHandler);
+    QTimer timer;
+    QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+    timer.setSingleShot(true);
+    timer.setInterval(40000);
+    timer.start();
+    x11InfoRetriever.start();
+    loop.exec();
+    QVERIFY(timer.isActive());
+    timer.stop();
+    if (successExpected) {
+        QVERIFY2(success, qPrintable(errorMessage));
+        QVERIFY(!displayInfo.protocol.isEmpty());
+        QVERIFY(!displayInfo.cookie.isEmpty());
+        QCOMPARE(displayInfo.cookie.size(), displayInfo.randomCookie.size());
+        QCOMPARE(displayInfo.displayName, displayName);
+    } else {
+        QVERIFY(!success);
+        QVERIFY(!errorMessage.isEmpty());
+    }
 }
 
 bool tst_Ssh::waitForConnection(SshConnection &connection)

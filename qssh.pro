@@ -1,7 +1,12 @@
 TEMPLATE  = subdirs
 CONFIG   += ordered
 
+include(qssh.pri)
+
 SUBDIRS = \
     src \
-    examples \ 
-    tests 
+    examples
+
+equals(TEST, 1) {
+    SUBDIRS += tests 
+}

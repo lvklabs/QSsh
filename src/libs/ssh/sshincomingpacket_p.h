@@ -137,6 +137,13 @@ struct SshChannelOpenForwardedTcpIp
     quint32 originatorPort;
 };
 
+struct SshChannelOpenX11
+{
+    SshChannelOpenCommon common;
+    QByteArray originatorAddress;
+    quint32 originatorPort;
+};
+
 struct SshChannelOpenFailure
 {
     quint32 localChannel;
@@ -210,6 +217,7 @@ public:
     SshChannelOpenGeneric extractChannelOpen() const;
     static SshChannelOpenForwardedTcpIp extractChannelOpenForwardedTcpIp(
             const SshChannelOpenGeneric &genericData);
+    static SshChannelOpenX11 extractChannelOpenX11(const SshChannelOpenGeneric &genericData);
     SshChannelOpenFailure extractChannelOpenFailure() const;
     SshChannelOpenConfirmation extractChannelOpenConfirmation() const;
     SshChannelWindowAdjust extractWindowAdjust() const;

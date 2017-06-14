@@ -150,6 +150,8 @@ public:
 
     int channelCount() const;
 
+    QString x11DisplayName() const;
+
 signals:
     void connected();
     void disconnected();

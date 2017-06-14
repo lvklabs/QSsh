@@ -43,6 +43,8 @@ SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshtcpiptunnel.cpp \
     $$PWD/sshforwardedtcpiptunnel.cpp \
     $$PWD/sshagent.cpp \
+    $$PWD/sshx11channel.cpp \
+    $$PWD/sshx11inforetriever.cpp \
 
 HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sshremoteprocess.h \
@@ -86,5 +88,8 @@ HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sshforwardedtcpiptunnel_p.h \
     $$PWD/sshagent_p.h \
     $$PWD/ssh_global.h \
+    $$PWD/sshx11channel_p.h \
+    $$PWD/sshx11displayinfo_p.h \
+    $$PWD/sshx11inforetriever_p.h
 
 RESOURCES += $$PWD/ssh.qrc
