@@ -1059,6 +1059,8 @@ void SftpChannelPrivate::attributesToFileInfo(const SftpFileAttributes &attribut
             fileInfo.type = FileTypeOther;
         fileInfo.permissionsValid = true;
         fileInfo.permissions = 0;
+        fileInfo.atime = attributes.atime;
+        fileInfo.mtime = attributes.mtime;
         if (attributes.permissions & 00001) // S_IXOTH
             fileInfo.permissions |= QFile::ExeOther;
         if (attributes.permissions & 00002) // S_IWOTH
