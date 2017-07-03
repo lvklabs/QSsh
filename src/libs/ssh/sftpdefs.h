@@ -56,6 +56,10 @@ public:
     SftpFileType type;
     quint64 size;
     QFile::Permissions permissions;
+    
+    //add by hadesjaky 2017.7.2 add file time
+    quint32 atime;
+    quint32 mtime;//modify time    
 
     // The RFC allows an SFTP server not to support any file attributes beyond the name.
     bool sizeValid;
