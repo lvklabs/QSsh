@@ -37,6 +37,11 @@
 #include "sshincomingpacket_p.h"
 
 #include <botan/botan.h>
+#include <botan/dl_group.h>
+#include <botan/rsa.h>
+#include <botan/dsa.h>
+#include <botan/dh.h>
+#include <botan/pubkey.h>
 
 #ifdef CREATOR_SSH_DEBUG
 #include <iostream>

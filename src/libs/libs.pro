@@ -2,5 +2,5 @@ TEMPLATE  = subdirs
 CONFIG   += ordered
 
 SUBDIRS   = \
-    3rdparty \
     ssh
+#    3rdparty \

@@ -37,7 +37,11 @@
 #include "sshkeypasswordretriever_p.h"
 #include "sshpacket_p.h"
 
-#include <botan/botan.h>
+#include <botan/cbc.h>
+#include <botan/pkcs8.h>
+#include <botan/dsa.h>
+#include <botan/rsa.h>
+#include <botan/pubkey.h>
 
 #include <QDebug>
 #include <QList>
