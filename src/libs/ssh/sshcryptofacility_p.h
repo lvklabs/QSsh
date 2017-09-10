@@ -32,6 +32,7 @@
 #define SSHABSTRACTCRYPTOFACILITY_P_H
 
 #include <botan/botan.h>
+#include <botan/hmac.h>
 
 #include <QByteArray>
 #include <QScopedPointer>

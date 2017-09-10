@@ -35,6 +35,10 @@
 #include "sshpacket_p.h"
 
 #include <botan/botan.h>
+#include <botan/rsa.h>
+#include <botan/der_enc.h>
+#include <botan/dsa.h>
+#include <botan/pem.h>
 
 #include <QDateTime>
 #include <QInputDialog>
