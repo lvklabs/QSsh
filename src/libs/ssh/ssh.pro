@@ -87,4 +87,4 @@ HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sshagent_p.h \
     $$PWD/ssh_global.h \
 
-
+RESOURCES += $$PWD/ssh.qrc
