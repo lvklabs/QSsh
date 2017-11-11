@@ -376,7 +376,7 @@ void SshConnectionPrivate::handleServerId()
     // "printable US-ASCII characters, with the exception of whitespace characters
     // and the minus sign"
     QString legalString = QLatin1String("[]!\"#$!&'()*+,./0-9:;<=>?@A-Z[\\\\^_`a-z{|}~]+");
-    const QRegExp versionIdpattern(QString::fromLatin1("SSH-(%1)-%1(?: .+)?").arg(legalString));
+    const QRegExp versionIdpattern(QString::fromLatin1("SSH-(%1)-%1(?: .+)?.*").arg(legalString));
     if (!versionIdpattern.exactMatch(QString::fromLatin1(m_serverId))) {
         throw SshServerException(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Identification string is invalid.",
