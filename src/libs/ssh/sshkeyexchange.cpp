@@ -36,7 +36,13 @@
 #include "sshexception_p.h"
 #include "sshincomingpacket_p.h"
 
-#include <botan/botan.h>
+#include <botan/dl_group.h>
+#include <botan/dh.h>
+#include <botan/numthry.h>
+#include <botan/pubkey.h>
+#include <botan/lookup.h>
+#include <botan/dsa.h>
+#include <botan/rsa.h>
 
 #ifdef CREATOR_SSH_DEBUG
 #include <iostream>
@@ -165,7 +171,7 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
     m_k = AbstractSshPacket::encodeMpInt(k);
     concatenatedData += m_k;
 
-    m_hash.reset(get_hash(botanSha1Name()));
+    m_hash.reset(HashFunction::create_or_throw(botanSha1Name())->clone());
     const SecureVector<byte> &hashResult
         = m_hash->process(convertByteArray(concatenatedData),
                         concatenatedData.size());

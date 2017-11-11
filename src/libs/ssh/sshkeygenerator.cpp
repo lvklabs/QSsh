@@ -34,7 +34,14 @@
 #include "sshcapabilities_p.h"
 #include "sshpacket_p.h"
 
-#include <botan/botan.h>
+#include <botan/rsa.h>
+#include <botan/dsa.h>
+#include <botan/auto_rng.h>
+#include <botan/pipe.h>
+#include <botan/pkcs8.h>
+#include <botan/der_enc.h>
+#include <botan/pem.h>
+#include <botan/x509cert.h>
 
 #include <QDateTime>
 #include <QInputDialog>
