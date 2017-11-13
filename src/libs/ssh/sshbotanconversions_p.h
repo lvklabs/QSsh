@@ -33,7 +33,7 @@
 
 #include "sshcapabilities_p.h"
 
-#include <botan/botan.h>
+#include <botan/secmem.h>
 
 namespace QSsh {
 namespace Internal {
@@ -48,9 +48,14 @@ inline Botan::byte *convertByteArray(QByteArray &a)
     return reinterpret_cast<Botan::byte *>(a.data());
 }
 
-inline QByteArray convertByteArray(const Botan::SecureVector<Botan::byte> &v)
+inline QByteArray convertByteArray(const Botan::secure_vector<Botan::byte> &v)
 {
-    return QByteArray(reinterpret_cast<const char *>(v.begin()), v.size());
+    return QByteArray(reinterpret_cast<const char *>(v.data()), v.size());
+}
+
+inline QByteArray convertByteArray(const std::vector<uint8_t> &v)
+{
+    return QByteArray(reinterpret_cast<const char *>(v.data()), v.size());
 }
 
 inline const char *botanKeyExchangeAlgoName(const QByteArray &rfcAlgoName)

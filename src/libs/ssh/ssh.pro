@@ -3,12 +3,14 @@ TARGET = QSsh
 QT += network
 DEFINES += QSSH_LIBRARY
 
+LIBS += -lbotan-2
+
 #Enable debug log
 #DEFINES += CREATOR_SSH_DEBUG
 
+INCLUDEPATH += /usr/include/botan-2/
 
 include(../../qtcreatorlibrary.pri)
-include(ssh_dependencies.pri)
 
 SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshremoteprocess.cpp \

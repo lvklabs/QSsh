@@ -30,8 +30,6 @@
 #include "window.h"
 #include "ui_window.h"
 
-#include "modeltest.h"
-
 #include <ssh/sftpfilesystemmodel.h>
 #include <ssh/sshconnection.h>
 
@@ -68,8 +66,6 @@ void SftpFsWindow::connectToHost()
     sshParams.port = m_ui->portSpinBox->value();
     sshParams.timeout = 10;
     m_fsModel = new SftpFileSystemModel(this);
-    if (m_ui->useModelTesterCheckBox->isChecked())
-        new ModelTest(m_fsModel, this);
     connect(m_fsModel, SIGNAL(sftpOperationFailed(QString)),
         SLOT(handleSftpOperationFailed(QString)));
     connect(m_fsModel, SIGNAL(connectionError(QString)), SLOT(handleConnectionError(QString)));

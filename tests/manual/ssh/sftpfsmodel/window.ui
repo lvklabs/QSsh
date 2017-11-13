@@ -89,13 +89,6 @@
     </widget>
    </item>
    <item>
-    <widget class="QCheckBox" name="useModelTesterCheckBox">
-     <property name="text">
-      <string>Use model tester</string>
-     </property>
-    </widget>
-   </item>
-   <item>
     <widget class="QGroupBox" name="groupBox_2">
      <property name="title">
       <string>Remote File System</string>

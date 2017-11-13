@@ -19,4 +19,4 @@ HEADERS  += \
     securefileuploader.h
 
 include(../../qssh.pri) ## Required for IDE_LIBRARY_PATH and qtLibraryName
-LIBS += -L$$IDE_LIBRARY_PATH -l$$qtLibraryName(Botan) -l$$qtLibraryName(QSsh)
+LIBS += -L$$IDE_LIBRARY_PATH -l$$qtLibraryName(botan-2) -l$$qtLibraryName(QSsh)

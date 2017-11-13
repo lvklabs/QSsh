@@ -81,7 +81,7 @@ namespace {
             : errorMessage(response.errorString, alternativeMessage);
     }
 
-    bool openFile(const QSharedPointer<QFile> &localFile, SftpOverwriteMode mode)
+    bool openFile(QFile *localFile, SftpOverwriteMode mode)
     {
         if (mode == SftpSkipExisting && localFile->exists())
             return false;
@@ -199,6 +199,15 @@ SftpJobId SftpChannel::createFile(const QString &path, SftpOverwriteMode mode)
         new Internal::SftpCreateFile(++d->m_nextJobId, path, mode)));
 }
 
+SftpJobId SftpChannel::uploadFile(QSharedPointer<QIODevice> localFile,
+    const QString &remoteFilePath, SftpOverwriteMode mode)
+{
+    if (!localFile->isOpen() && !localFile->open(QIODevice::ReadOnly))
+        return SftpInvalidJob;
+    return d->createJob(Internal::SftpUploadFile::Ptr(
+        new Internal::SftpUploadFile(++d->m_nextJobId, remoteFilePath, localFile, mode)));
+}
+
 SftpJobId SftpChannel::uploadFile(const QString &localFilePath,
     const QString &remoteFilePath, SftpOverwriteMode mode)
 {
@@ -215,6 +224,12 @@ SftpJobId SftpChannel::downloadFile(const QString &remoteFilePath,
     QSharedPointer<QFile> localFile(new QFile(localFilePath));
     return d->createJob(Internal::SftpDownload::Ptr(
         new Internal::SftpDownload(++d->m_nextJobId, remoteFilePath, localFile, mode)));
+}
+
+SftpJobId SftpChannel::downloadFile(const QString &remoteFilePath, QSharedPointer<QIODevice> localFile)
+{
+    return d->createJob(Internal::SftpDownload::Ptr(
+        new Internal::SftpDownload(++d->m_nextJobId, remoteFilePath, localFile, SftpOverwriteExisting)));
 }
 
 SftpJobId SftpChannel::uploadDir(const QString &localDirPath,
@@ -822,8 +837,15 @@ void SftpChannelPrivate::handleReadData()
     }
 
     if (!op->localFile->isOpen()) {
-        if (!Internal::openFile(op->localFile, op->mode)) {
-            reportRequestError(op, tr("Cannot open file ") + op->localFile->fileName());
+        QFile *fileDevice = qobject_cast<QFile*>(op->localFile.data());
+        if (fileDevice){
+            if (!Internal::openFile(fileDevice, op->mode)) {
+                reportRequestError(op, tr("Cannot open file ") + fileDevice->fileName());
+                finishTransferRequest(it);
+                return;
+            }
+        } else {
+            reportRequestError(op, tr("File to upload is not open"));
             finishTransferRequest(it);
             return;
         }
@@ -1092,7 +1114,9 @@ void SftpChannelPrivate::sendWriteRequest(const JobMap::Iterator &it)
 {
     SftpUploadFile::Ptr job = it.value().staticCast<SftpUploadFile>();
     QByteArray data = job->localFile->read(AbstractSftpPacket::MaxDataSize);
-    if (job->localFile->error() != QFile::NoError) {
+
+    QFileDevice *fileDevice = qobject_cast<QFileDevice*>(job->localFile.data());
+    if (fileDevice && fileDevice->error() != QFileDevice::NoError) {
         if (job->parentJob)
             job->parentJob->setError();
         reportRequestError(job, tr("Error reading local file: %1")

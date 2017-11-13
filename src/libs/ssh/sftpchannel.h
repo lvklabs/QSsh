@@ -73,10 +73,14 @@ public:
         const QString &newPath);
     SftpJobId createFile(const QString &filePath, SftpOverwriteMode mode);
     SftpJobId createLink(const QString &filePath, const QString &target);
+    SftpJobId uploadFile(QSharedPointer<QIODevice> localFile,
+        const QString &remoteFilePath, SftpOverwriteMode mode);
     SftpJobId uploadFile(const QString &localFilePath,
         const QString &remoteFilePath, SftpOverwriteMode mode);
     SftpJobId downloadFile(const QString &remoteFilePath,
         const QString &localFilePath, SftpOverwriteMode mode);
+    SftpJobId downloadFile(const QString &remoteFilePath,
+        QSharedPointer<QIODevice> localFile);
     SftpJobId uploadDir(const QString &localDirPath,
         const QString &remoteParentDirPath);
     SftpJobId downloadDir(const QString &remoteDirPath,

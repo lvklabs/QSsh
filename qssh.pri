@@ -146,6 +146,7 @@ INCLUDEPATH += \
 CONFIG += depend_includepath
 
 LIBS += -L$$IDE_LIBRARY_PATH
+LIBS += -lbotan-2
 
 !isEmpty(vcproj) {
     DEFINES += IDE_LIBRARY_BASENAME=\"$$IDE_LIBRARY_BASENAME\"
