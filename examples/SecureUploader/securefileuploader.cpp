@@ -36,12 +36,12 @@ void SecureFileUploader::upload(const QString &localFile, const QString &dest, c
     m_remoteFilename = dest + "/" + info.fileName();
 
     QSsh::SshConnectionParameters params;
-    params.host = host;
-    params.userName = username;
-    params.password = passwd;
+    params.setHost(host);
+    params.setUserName(username);
+    params.setPassword(passwd);
     params.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypeTryAllPasswordBasedMethods;
     params.timeout = 30;
-    params.port = 22;
+    params.setPort(22);
 
     m_connection = new QSsh::SshConnection(params, this); // TODO free this pointer!
 

@@ -65,7 +65,7 @@ void SftpTest::run()
     connect(m_connection, SIGNAL(error(QSsh::SshError)), SLOT(handleError()));
     connect(m_connection, SIGNAL(disconnected()), SLOT(handleDisconnected()));
     std::cout << "Connecting to host '"
-        << qPrintable(m_parameters.sshParams.host) << "'..." << std::endl;
+        << qPrintable(m_parameters.sshParams.host()) << "'..." << std::endl;
     m_state = Connecting;
     m_connection->connectToHost();
 }
