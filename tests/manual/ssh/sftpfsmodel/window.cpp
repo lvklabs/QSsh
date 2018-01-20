@@ -40,6 +40,7 @@
 #include <QModelIndexList>
 #include <QItemSelectionModel>
 #include <QString>
+#include <QProcessEnvironment>
 
 using namespace QSsh;
 
@@ -60,10 +61,19 @@ void SftpFsWindow::connectToHost()
     m_ui->connectButton->setEnabled(false);
     SshConnectionParameters sshParams;
     sshParams.setHost(m_ui->hostLineEdit->text());
-    sshParams.setUserName(m_ui->userLineEdit->text());
-    sshParams.authenticationType
+    if (!m_ui->userLineEdit->text().isEmpty()) {
+        sshParams.setUserName(m_ui->userLineEdit->text());
+    } else {
+        sshParams.setUserName(QProcessEnvironment::systemEnvironment().value("USER"));
+    }
+    if (!m_ui->passwordLineEdit->text().isEmpty()) {
+        sshParams.authenticationType
             = SshConnectionParameters::AuthenticationTypeTryAllPasswordBasedMethods;
-    sshParams.setPassword(m_ui->passwordLineEdit->text());
+        sshParams.setPassword(m_ui->passwordLineEdit->text());
+    } else {
+        sshParams.authenticationType = SshConnectionParameters::AuthenticationTypePublicKey;
+        sshParams.privateKeyFile = QDir::homePath() + QLatin1String("/.ssh/id_rsa");
+    }
     sshParams.setPort(m_ui->portSpinBox->value());
     sshParams.timeout = 10;
     m_fsModel = new SftpFileSystemModel(this);
