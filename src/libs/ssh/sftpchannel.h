@@ -106,6 +106,8 @@ signals:
      */
     void fileInfoAvailable(QSsh::SftpJobId job, const QList<QSsh::SftpFileInfo> &fileInfoList);
 
+    void transferProgress(QSsh::SftpJobId job, quint64 progress, quint64 total);
+
 private:
     SftpChannel(quint32 channelId, Internal::SshSendFacility &sendFacility);
 

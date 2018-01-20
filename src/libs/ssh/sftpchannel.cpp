@@ -118,6 +118,8 @@ SftpChannel::SftpChannel(quint32 channelId,
             this, &SftpChannel::finished, Qt::QueuedConnection);
     connect(d, &Internal::SftpChannelPrivate::closed,
             this, &SftpChannel::closed, Qt::QueuedConnection);
+    connect(d, &Internal::SftpChannelPrivate::transferProgress,
+            this, &SftpChannel::transferProgress, Qt::QueuedConnection);
 }
 
 SftpChannel::State SftpChannel::state() const
@@ -862,6 +864,8 @@ void SftpChannelPrivate::handleReadData()
         return;
     }
 
+    emit transferProgress(op->jobId, op->localFile->pos(), op->fileSize);
+
     if (op->offset >= op->fileSize && op->fileSize != 0)
         finishTransferRequest(it);
     else
@@ -903,6 +907,7 @@ void SftpChannelPrivate::handleAttrs()
             op->eofId = op->jobId;
         }
         op->statRequested = false;
+        emit transferProgress(op->jobId, op->offset, op->fileSize);
         spawnReadRequests(op);
     } else {
         SftpUploadFile::Ptr op = transfer.staticCast<SftpUploadFile>();
@@ -914,6 +919,7 @@ void SftpChannelPrivate::handleAttrs()
 
         if (response.attrs.sizePresent) {
             op->offset = response.attrs.size;
+            emit transferProgress(op->jobId, op->offset, op->fileSize);
             spawnWriteRequests(it);
         } else {
             if (op->parentJob)
@@ -1110,6 +1116,9 @@ void SftpChannelPrivate::removeTransferRequest(const JobMap::Iterator &it)
 void SftpChannelPrivate::sendWriteRequest(const JobMap::Iterator &it)
 {
     SftpUploadFile::Ptr job = it.value().staticCast<SftpUploadFile>();
+
+    emit transferProgress(job->jobId, job->localFile->pos(), job->localFile->size());
+
     QByteArray data = job->localFile->read(AbstractSftpPacket::MaxDataSize);
 
     QFileDevice *fileDevice = qobject_cast<QFileDevice*>(job->localFile.data());
