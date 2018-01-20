@@ -54,9 +54,9 @@ Parameters ArgumentsCollector::collect(bool &success) const
         bool proxySettingGiven = false;
         int pos;
         int port;
+        QString host;
+        QString user;
         for (pos = 1; pos < m_arguments.count() - 1; ++pos) {
-            QString host;
-            QString user;
             if (checkAndSetStringArg(pos, host, "-h") || checkAndSetStringArg(pos, user, "-u")) {
                 parameters.sshParams.setHost(host);
                 parameters.sshParams.setUserName(user);
