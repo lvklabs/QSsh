@@ -35,6 +35,7 @@
 #include "ssh_global.h"
 #include "sshinit_p.h"
 #include "sshpacket_p.h"
+#include "sshlogging_p.h"
 
 #include <botan/rsa.h>
 #include <botan/dsa.h>
@@ -130,8 +131,11 @@ void SshKeyGenerator::generatePkcs8KeyString(const KeyPtr &key, bool privateKey,
     }
     pipe.end_msg();
     keyData->resize(static_cast<int>(pipe.remaining(pipe.message_count() - 1)));
-    pipe.read(convertByteArray(*keyData), keyData->size(),
+    size_t readSize = pipe.read(convertByteArray(*keyData), keyData->size(),
         pipe.message_count() - 1);
+    if (readSize != size_t(keyData->size())) {
+        qCWarning(sshLog, "Didn't manage to read in all key data, only read %d bytes", readSize);
+    }
 }
 
 void SshKeyGenerator::generateOpenSslKeyStrings(const KeyPtr &key)
