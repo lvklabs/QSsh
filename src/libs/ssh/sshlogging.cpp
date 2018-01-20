@@ -32,6 +32,6 @@
 
 namespace QSsh {
 namespace Internal {
-Q_LOGGING_CATEGORY(sshLog, "qtc.ssh")
+Q_LOGGING_CATEGORY(sshLog, "qtc.ssh", QtWarningMsg)
 } // namespace Internal
 } // namespace QSsh
