@@ -139,6 +139,9 @@ macx {
     !isEqual(IDE_SOURCE_TREE, $$IDE_BUILD_TREE):copydata = 1
 }
 
+CONFIG += link_pkgconfig
+PKGCONFIG += botan-2
+
 INCLUDEPATH += \
     $$IDE_BUILD_TREE/src \ # for <app/app_version.h>
     $$IDE_SOURCE_TREE/src/libs
