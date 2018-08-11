@@ -215,8 +215,8 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
     } else {
         QSSH_ASSERT_AND_RETURN(m_serverHostKeyAlgo.startsWith(SshCapabilities::PubKeyEcdsaPrefix));
         const EC_Group domain(SshCapabilities::oid(m_serverHostKeyAlgo));
-        const PointGFp point = OS2ECP(convertByteArray(reply.q), reply.q.count(),
-                                      domain.get_curve());
+
+        const PointGFp point = domain.OS2ECP(convertByteArray(reply.q), reply.q.count());
         ECDSA_PublicKey * const ecdsaKey = new ECDSA_PublicKey(domain, point);
         sigKey.reset(ecdsaKey);
     }

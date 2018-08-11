@@ -134,7 +134,7 @@ void SshKeyGenerator::generatePkcs8KeyString(const KeyPtr &key, bool privateKey,
     size_t readSize = pipe.read(convertByteArray(*keyData), keyData->size(),
         pipe.message_count() - 1);
     if (readSize != size_t(keyData->size())) {
-        qCWarning(sshLog, "Didn't manage to read in all key data, only read %d bytes", readSize);
+        qCWarning(sshLog, "Didn't manage to read in all key data, only read %lu bytes", readSize);
     }
 }
 
@@ -164,7 +164,7 @@ void SshKeyGenerator::generateOpenSslPublicKeyString(const KeyPtr &key)
     }
     case Ecdsa: {
         const auto ecdsaKey = key.dynamicCast<ECDSA_PrivateKey>();
-        q = convertByteArray(EC2OSP(ecdsaKey->public_point(), PointGFp::UNCOMPRESSED));
+        q = convertByteArray(ecdsaKey->public_point().encode(PointGFp::UNCOMPRESSED));
         keyId = SshCapabilities::ecdsaPubKeyAlgoForKeyWidth(
                     static_cast<int>(ecdsaKey->private_value().bytes()));
         break;

@@ -251,7 +251,7 @@ void SshEncryptionFacility::createAuthenticationKey(const QByteArray &privKeyFil
     if (ecdsaKey) {
         m_authPubKeyBlob += AbstractSshPacket::encodeString(m_authKeyAlgoName.mid(11)); // Without "ecdsa-sha2-" prefix.
         m_authPubKeyBlob += AbstractSshPacket::encodeString(
-                    convertByteArray(EC2OSP(ecdsaKey->public_point(), PointGFp::UNCOMPRESSED)));
+                    convertByteArray(ecdsaKey->public_point().encode(PointGFp::UNCOMPRESSED)));
     } else {
         foreach (const BigInt &b, pubKeyParams)
             m_authPubKeyBlob += AbstractSshPacket::encodeMpInt(b);
