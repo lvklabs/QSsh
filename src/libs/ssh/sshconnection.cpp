@@ -102,6 +102,8 @@ SshConnection::SshConnection(const SshConnectionParameters &serverInfo, QObject 
     qRegisterMetaType<QSsh::SshError>("QSsh::SshError");
     qRegisterMetaType<QSsh::SftpJobId>("QSsh::SftpJobId");
     qRegisterMetaType<QSsh::SftpFileInfo>("QSsh::SftpFileInfo");
+    qRegisterMetaType<QSsh::SftpError>("QSsh::SftpError");
+    qRegisterMetaType<QSsh::SftpError>("SftpError");
     qRegisterMetaType<QList <QSsh::SftpFileInfo> >("QList<QSsh::SftpFileInfo>");
 
     d = new Internal::SshConnectionPrivate(this, serverInfo);

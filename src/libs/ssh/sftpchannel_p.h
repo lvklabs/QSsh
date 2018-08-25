@@ -55,7 +55,7 @@ signals:
     void initialized();
     void channelError(const QString &reason);
     void closed();
-    void finished(QSsh::SftpJobId job, const QString &error = QString());
+    void finished(QSsh::SftpJobId job, const SftpError errorType = SftpError::NoError, const QString &error = QString());
     void dataAvailable(QSsh::SftpJobId job, const QString &data);
     void fileInfoAvailable(QSsh::SftpJobId job, const QList<QSsh::SftpFileInfo> &fileInfoList);
     void transferProgress(QSsh::SftpJobId job, quint64 progress, quint64 total);
@@ -112,7 +112,7 @@ private:
     void sendWriteRequest(const JobMap::Iterator &it);
     void finishTransferRequest(const JobMap::Iterator &it);
     void removeTransferRequest(const JobMap::Iterator &it);
-    void reportRequestError(const AbstractSftpOperationWithHandle::Ptr &job,
+    void reportRequestError(const AbstractSftpOperationWithHandle::Ptr &job, const SftpError errorType,
         const QString &error);
     void sendTransferCloseHandle(const AbstractSftpTransfer::Ptr &job,
         quint32 requestId);

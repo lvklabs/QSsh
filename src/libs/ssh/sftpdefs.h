@@ -47,6 +47,8 @@ enum SftpOverwriteMode {
 
 enum SftpFileType { FileTypeRegular, FileTypeDirectory, FileTypeOther, FileTypeUnknown };
 
+enum SftpError { NoError, EndOfFile, FileNotFound, PermissionDenied, GenericFailure, BadMessage, NoConnection, ConnectionLost, UnsupportedOperation  };
+
 class QSSH_EXPORT SftpFileInfo
 {
 public:

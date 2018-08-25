@@ -258,6 +258,10 @@ int SftpFileSystemModel::rowCount(const QModelIndex &parent) const
 
 void SftpFileSystemModel::statRootDirectory()
 {
+    if (!d->sftpChannel) {
+        return;
+    }
+
     d->statJobId = d->sftpChannel->statFile(d->rootDirectory);
 }
 
@@ -357,8 +361,10 @@ void SftpFileSystemModel::handleFileInfo(SftpJobId jobId, const QList<SftpFileIn
     emit layoutChanged(); // Should be endInsertRows(), see above.
 }
 
-void SftpFileSystemModel::handleSftpJobFinished(SftpJobId jobId, const QString &errorMessage)
+void SftpFileSystemModel::handleSftpJobFinished(SftpJobId jobId, const SftpError error, const QString &errorMessage)
 {
+    Q_UNUSED(error);
+
     if (jobId == d->statJobId) {
         d->statJobId = SftpInvalidJob;
         if (!errorMessage.isEmpty())

@@ -94,7 +94,7 @@ signals:
     void closed();
 
     // error.isEmpty <=> finished successfully
-    void finished(QSsh::SftpJobId job, const QString &error = QString());
+    void finished(QSsh::SftpJobId job, const SftpError errorType = SftpError::NoError, const QString &error = QString());
 
      // TODO: Also emit for each file copied by uploadDir().
     void dataAvailable(QSsh::SftpJobId job, const QString &data);

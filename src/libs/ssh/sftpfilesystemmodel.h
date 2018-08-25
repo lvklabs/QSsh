@@ -87,7 +87,7 @@ private:
     void handleSftpChannelInitialized();
     void handleSftpChannelError(const QString &reason);
     void handleFileInfo(QSsh::SftpJobId jobId, const QList<QSsh::SftpFileInfo> &fileInfoList);
-    void handleSftpJobFinished(QSsh::SftpJobId jobId, const QString &errorMessage);
+    void handleSftpJobFinished(QSsh::SftpJobId jobId, const SftpError error, const QString &errorMessage);
 
     int columnCount(const QModelIndex &parent = QModelIndex()) const;
     Qt::ItemFlags flags(const QModelIndex &index) const;
