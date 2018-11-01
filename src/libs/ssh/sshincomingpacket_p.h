@@ -114,13 +114,27 @@ struct SshRequestSuccess
     quint32 bindPort;
 };
 
-struct SshChannelOpen
+struct SshChannelOpenCommon
 {
     quint32 remoteChannel;
     quint32 remoteWindowSize;
     quint32 remoteMaxPacketSize;
+};
+
+struct SshChannelOpenGeneric
+{
+    QByteArray channelType;
+    SshChannelOpenCommon commonData;
+    QByteArray typeSpecificData;
+};
+
+struct SshChannelOpenForwardedTcpIp
+{
+    SshChannelOpenCommon common;
     QByteArray remoteAddress;
     quint32 remotePort;
+    QByteArray originatorAddress;
+    quint32 originatorPort;
 };
 
 struct SshChannelOpenFailure
@@ -193,7 +207,9 @@ public:
     SshRequestSuccess extractRequestSuccess() const;
     SshUnimplemented extractUnimplemented() const;
 
-    SshChannelOpen extractChannelOpen() const;
+    SshChannelOpenGeneric extractChannelOpen() const;
+    static SshChannelOpenForwardedTcpIp extractChannelOpenForwardedTcpIp(
+            const SshChannelOpenGeneric &genericData);
     SshChannelOpenFailure extractChannelOpenFailure() const;
     SshChannelOpenConfirmation extractChannelOpenConfirmation() const;
     SshChannelWindowAdjust extractWindowAdjust() const;
