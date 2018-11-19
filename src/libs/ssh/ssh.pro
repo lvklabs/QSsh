@@ -45,6 +45,7 @@ SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshagent.cpp \
     $$PWD/sshx11channel.cpp \
     $$PWD/sshx11inforetriever.cpp \
+    $$PWD/opensshkeyfilereader.cpp \
 
 HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sshremoteprocess.h \
@@ -91,5 +92,6 @@ HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sshx11channel_p.h \
     $$PWD/sshx11displayinfo_p.h \
     $$PWD/sshx11inforetriever_p.h
+    $$PWD/opensshkeyfilereader_p.h \
 
 RESOURCES += $$PWD/ssh.qrc
