@@ -72,7 +72,6 @@ SshConnectionParameters::SshConnectionParameters() :
 {
     url.setPort(0);
     options |= SshIgnoreDefaultProxy;
-    options |= SshEnableStrictConformanceChecks;
 }
 
 static inline bool equals(const SshConnectionParameters &p1, const SshConnectionParameters &p2)
@@ -411,18 +410,25 @@ void SshConnectionPrivate::handleServerId()
                     .arg(serverProtoVersion));
     }
 
-    if (m_connParams.options & SshEnableStrictConformanceChecks) {
-        if (serverProtoVersion == QLatin1String("2.0") && !hasCarriageReturn) {
+    if (serverProtoVersion == QLatin1String("2.0") && !hasCarriageReturn) {
+        if (m_connParams.options & SshEnableStrictConformanceChecks) {
             throw SshServerException(SSH_DISCONNECT_PROTOCOL_ERROR,
                     "Identification string is invalid.",
                     tr("Server identification string is invalid (missing carriage return)."));
+        } else {
+            qCWarning(Internal::sshLog, "Server identification string is invalid (missing carriage return).");
         }
+    }
 
-        if (serverProtoVersion == QLatin1String("1.99") && m_serverHasSentDataBeforeId) {
+    if (serverProtoVersion == QLatin1String("1.99") && m_serverHasSentDataBeforeId) {
+        if (m_connParams.options & SshEnableStrictConformanceChecks) {
             throw SshServerException(SSH_DISCONNECT_PROTOCOL_ERROR,
                     "No extra data preceding identification string allowed for 1.99.",
                     tr("Server reports protocol version 1.99, but sends data "
-                       "before the identification string, which is not allowed."));
+                        "before the identification string, which is not allowed."));
+        } else {
+            qCWarning(Internal::sshLog, "Server reports protocol version 1.99, but sends data "
+                        "before the identification string, which is not allowed.");
         }
     }
 
