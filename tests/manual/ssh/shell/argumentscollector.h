@@ -25,47 +25,27 @@
 
 #pragma once
 
-#include "ssh/ssherrors.h"
+#include <ssh/sshconnection.h>
 
-#include <QObject>
-#include <QSharedPointer>
+#include <QStringList>
 
-QT_BEGIN_NAMESPACE
-class QTcpSocket;
-QT_END_NAMESPACE
-
-namespace QSsh {
-class SshConnection;
-class SshConnectionParameters;
-class SshTcpIpForwardServer;
-}
-
-class ForwardTunnel : public QObject
+class ArgumentsCollector
 {
-    Q_OBJECT
 public:
-    ForwardTunnel(const QSsh::SshConnectionParameters &parameters,
-                  QObject *parent = 0);
-    void run();
-
-signals:
-    void finished(int exitCode);
-
-private slots:
-    void handleConnected();
-    void handleConnectionError(QSsh::SshError error);
-    void handleInitialized();
-    void handleServerError(const QString &reason);
-    void handleServerClosed();
-    void handleNewConnection();
-    void handleSocketError();
-
+    ArgumentsCollector(const QStringList &args);
+    QSsh::SshConnectionParameters collect(bool &success) const;
 private:
-    QSsh::SshConnection * const m_connection;
-    QSharedPointer<QSsh::SshTcpIpForwardServer> m_server;
-    QTcpSocket *m_targetSocket;
-    quint16 m_targetPort;
+    struct ArgumentErrorException
+    {
+        ArgumentErrorException(const QString &error) : error(error) {}
+        const QString error;
+    };
 
-    QByteArray m_dataReceivedFromServer;
-    QByteArray m_dataReceivedFromClient;
+    void printUsage() const;
+    bool checkAndSetStringArg(int &pos, QString &arg, const char *opt) const;
+    bool checkAndSetIntArg(int &pos, int &val, bool &alreadyGiven,
+        const char *opt) const;
+    bool checkForNoProxy(int &pos, QSsh::SshConnectionOptions &options, bool &alreadyGiven) const;
+
+    const QStringList m_arguments;
 };

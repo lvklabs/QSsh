@@ -1,32 +1,28 @@
-/**************************************************************************
+/****************************************************************************
 **
-** This file is part of Qt Creator
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** Copyright (c) 2012 Nokia Corporation and/or its subsidiary(-ies).
+** This file is part of Qt Creator.
 **
-** Contact: http://www.qt-project.org/
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
-** GNU Lesser General Public License Usage
-**
-** This file may be used under the terms of the GNU Lesser General Public
-** License version 2.1 as published by the Free Software Foundation and
-** appearing in the file LICENSE.LGPL included in the packaging of this file.
-** Please review the following information to ensure the GNU Lesser General
-** Public License version 2.1 requirements will be met:
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Nokia gives you certain additional
-** rights. These rights are described in the Nokia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-**
-** Other Usage
-**
-** Alternatively, this file may be used in accordance with the terms and
-** conditions contained in a signed written agreement between you and Nokia.
-**
-**
-**************************************************************************/
+****************************************************************************/
+
 #include "window.h"
 #include "ui_window.h"
 
@@ -40,15 +36,14 @@
 #include <QModelIndexList>
 #include <QItemSelectionModel>
 #include <QString>
-#include <QProcessEnvironment>
 
 using namespace QSsh;
 
 SftpFsWindow::SftpFsWindow(QWidget *parent) : QDialog(parent), m_ui(new Ui::Window)
 {
     m_ui->setupUi(this);
-    connect(m_ui->connectButton, SIGNAL(clicked()), SLOT(connectToHost()));
-    connect(m_ui->downloadButton, SIGNAL(clicked()), SLOT(downloadFile()));
+    connect(m_ui->connectButton, &QAbstractButton::clicked, this, &SftpFsWindow::connectToHost);
+    connect(m_ui->downloadButton, &QAbstractButton::clicked, this, &SftpFsWindow::downloadFile);
 }
 
 SftpFsWindow::~SftpFsWindow()
@@ -61,27 +56,19 @@ void SftpFsWindow::connectToHost()
     m_ui->connectButton->setEnabled(false);
     SshConnectionParameters sshParams;
     sshParams.setHost(m_ui->hostLineEdit->text());
-    if (!m_ui->userLineEdit->text().isEmpty()) {
-        sshParams.setUserName(m_ui->userLineEdit->text());
-    } else {
-        sshParams.setUserName(QProcessEnvironment::systemEnvironment().value("USER"));
-    }
-    if (!m_ui->passwordLineEdit->text().isEmpty()) {
-        sshParams.authenticationType
+    sshParams.setUserName(m_ui->userLineEdit->text());
+    sshParams.authenticationType
             = SshConnectionParameters::AuthenticationTypeTryAllPasswordBasedMethods;
-        sshParams.setPassword(m_ui->passwordLineEdit->text());
-    } else {
-        sshParams.authenticationType = SshConnectionParameters::AuthenticationTypePublicKey;
-        sshParams.privateKeyFile = QDir::homePath() + QLatin1String("/.ssh/id_rsa");
-    }
+    sshParams.setPassword(m_ui->passwordLineEdit->text());
     sshParams.setPort(m_ui->portSpinBox->value());
     sshParams.timeout = 10;
     m_fsModel = new SftpFileSystemModel(this);
-    connect(m_fsModel, SIGNAL(sftpOperationFailed(QString)),
-        SLOT(handleSftpOperationFailed(QString)));
-    connect(m_fsModel, SIGNAL(connectionError(QString)), SLOT(handleConnectionError(QString)));
-    connect(m_fsModel, SIGNAL(sftpOperationFinished(QSsh::SftpJobId,QString)),
-        SLOT(handleSftpOperationFinished(QSsh::SftpJobId,QString)));
+    connect(m_fsModel, &SftpFileSystemModel::sftpOperationFailed,
+            this, &SftpFsWindow::handleSftpOperationFailed);
+    connect(m_fsModel, &SftpFileSystemModel::connectionError,
+            this, &SftpFsWindow::handleConnectionError);
+    connect(m_fsModel, &SftpFileSystemModel::sftpOperationFinished,
+            this, &SftpFsWindow::handleSftpOperationFinished);
     m_fsModel->setSshConnection(sshParams);
     m_ui->fsView->setModel(m_fsModel);
 }
@@ -91,7 +78,7 @@ void SftpFsWindow::downloadFile()
     const QModelIndexList selectedIndexes = m_ui->fsView->selectionModel()->selectedIndexes();
     if (selectedIndexes.count() != 2)
         return;
-    const QString targetFilePath = QFileDialog::getSaveFileName(this, tr("Choose target file"),
+    const QString targetFilePath = QFileDialog::getSaveFileName(this, tr("Choose Target File"),
         QDir::tempPath());
     if (targetFilePath.isEmpty())
         return;

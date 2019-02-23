@@ -31,6 +31,8 @@
 #ifndef SSHERRORS_P_H
 #define SSHERRORS_P_H
 
+#include <QMetaType>
+
 namespace QSsh {
 
 enum SshError {
@@ -40,5 +42,7 @@ enum SshError {
 };
 
 } // namespace QSsh
+
+Q_DECLARE_METATYPE(QSsh::SshError)
 
 #endif // SSHERRORS_P_H
