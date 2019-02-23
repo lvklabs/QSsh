@@ -40,7 +40,7 @@ namespace QSsh {
 namespace Internal {
 class X11DisplayInfo;
 
-class QSSH_AUTOTEST_EXPORT SshX11InfoRetriever : public QObject
+class QSSH_EXPORT SshX11InfoRetriever : public QObject
 {
     Q_OBJECT
 public:

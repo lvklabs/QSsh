@@ -33,7 +33,7 @@
 namespace QSsh {
 namespace Internal {
 
-class QSSH_AUTOTEST_EXPORT X11DisplayInfo
+class QSSH_EXPORT X11DisplayInfo
 {
 public:
     QString displayName;

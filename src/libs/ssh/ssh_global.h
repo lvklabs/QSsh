@@ -39,12 +39,6 @@
 #  define QSSH_EXPORT Q_DECL_IMPORT
 #endif
 
-#ifdef WITH_TESTS
-#  define QSSH_AUTOTEST_EXPORT QSSH_EXPORT
-#else
-#  define QSSH_AUTOTEST_EXPORT
-#endif
-
 #define QSSH_PRINT_WARNING qWarning("Soft assert at %s:%d", __FILE__, __LINE__)
 #define QSSH_ASSERT(cond) do { if (!(cond)) { QSSH_PRINT_WARNING; } } while (false)
 #define QSSH_ASSERT_AND_RETURN(cond) do { if (!(cond)) { QSSH_PRINT_WARNING; return; } } while (false)
