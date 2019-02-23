@@ -55,17 +55,18 @@ public:
     SftpFileInfo() : type(FileTypeUnknown), sizeValid(false), permissionsValid(false) { }
 
     QString name;
-    SftpFileType type;
-    quint64 size;
-    QFile::Permissions permissions;
+    SftpFileType type = FileTypeUnknown;
+    quint64 size = 0;
+    QFile::Permissions permissions{};
     
     //add by hadesjaky 2017.7.2 add file time
-    quint32 atime;
-    quint32 mtime;//modify time    
+    quint32 atime = 0;
+    quint32 mtime = 0;//modify time    
+    bool timestampsValid = false;
 
     // The RFC allows an SFTP server not to support any file attributes beyond the name.
-    bool sizeValid;
-    bool permissionsValid;
+    bool sizeValid = false;
+    bool permissionsValid = false;
 };
 
 } // namespace QSsh
