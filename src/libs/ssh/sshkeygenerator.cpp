@@ -99,7 +99,7 @@ bool SshKeyGenerator::generateKeys(KeyType type, PrivateKeyFormat format, int ke
         }
         return true;
     } catch (const std::exception &e) {
-        m_error = tr("Error generating key: %1").arg(QString::fromAscii(e.what()));
+        m_error = tr("Error generating key: %1").arg(QString::fromLocal8Bit(e.what()));
         return false;
     }
 }

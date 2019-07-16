@@ -221,7 +221,7 @@ void SshRemoteProcess::sendSignal(Signal signal)
             d->m_sendFacility.sendChannelSignalPacket(d->remoteChannel(), signalString);
         }
     }  catch (const std::exception &e) {
-        setErrorString(QString::fromAscii(e.what()));
+        setErrorString(QString::fromLocal8Bit(e.what()));
         d->closeChannel();
     }
 }

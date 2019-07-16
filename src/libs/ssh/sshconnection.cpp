@@ -358,7 +358,7 @@ void SshConnectionPrivate::handleIncomingData()
             e.errorString);
     } catch (const std::exception &e) {
         closeConnection(SSH_DISCONNECT_BY_APPLICATION, SshInternalError, "",
-            tr("Botan library exception: %1").arg(QString::fromAscii(e.what())));
+            tr("Botan library exception: %1").arg(QString::fromLocal8Bit(e.what())));
     }
 }
 
