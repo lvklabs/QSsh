@@ -3,14 +3,24 @@ TARGET = QSsh
 QT += network
 DEFINES += QTCSSH_LIBRARY
 
-LIBS += -lbotan-2
-
 #Enable debug log
 #DEFINES += CREATOR_SSH_DEBUG
 
-INCLUDEPATH += /usr/include/botan-2/
+INCLUDEPATH += $$QSSH_PREFIX/include/botan-2/
 
-include(../../qtcreatorlibrary.pri)
+include(../../../qssh.pri)
+
+win32 {
+    DLLDESTDIR = $$[QT_INSTALL_LIBS]
+}
+
+DESTDIR = $$IDE_LIBRARY_PATH
+
+TARGET = $$qtLibraryName($$TARGET)
+
+CONFIG += shared dll
+
+contains(QT_CONFIG, reduce_exports):CONFIG += hide_symbols
 
 SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshremoteprocess.cpp \
