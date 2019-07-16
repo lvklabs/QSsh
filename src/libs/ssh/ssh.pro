@@ -57,19 +57,33 @@ SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshx11inforetriever.cpp \
     $$PWD/opensshkeyfilereader.cpp \
 
-HEADERS = $$PWD/sshsendfacility_p.h \
+PUBLIC_HEADERS = \
+    $$PWD/sftpdefs.h \
+    $$PWD/ssherrors.h \
     $$PWD/sshremoteprocess.h \
+    $$PWD/sftpchannel.h \
+    $$PWD/sshkeygenerator.h \
+    $$PWD/sshremoteprocessrunner.h \
+    $$PWD/sshconnectionmanager.h \
+    $$PWD/sshpseudoterminal.h \
+    $$PWD/sftpfilesystemmodel.h \
+    $$PWD/sshdirecttcpiptunnel.h \
+    $$PWD/sshtcpipforwardserver.h \
+    $$PWD/sshhostkeydatabase.h \
+    $$PWD/sshforwardedtcpiptunnel.h \
+    $$PWD/ssh_global.h \
+    $$PWD/sshconnection.h \
+
+HEADERS = $$PUBLIC_HEADERS \
+    $$PWD/sshsendfacility_p.h \
     $$PWD/sshremoteprocess_p.h \
     $$PWD/sshpacketparser_p.h \
     $$PWD/sshpacket_p.h \
     $$PWD/sshoutgoingpacket_p.h \
-    $$PWD/sshkeygenerator.h \
     $$PWD/sshkeyexchange_p.h \
     $$PWD/sshincomingpacket_p.h \
     $$PWD/sshexception_p.h \
-    $$PWD/ssherrors.h \
     $$PWD/sshcryptofacility_p.h \
-    $$PWD/sshconnection.h \
     $$PWD/sshconnection_p.h \
     $$PWD/sshchannelmanager_p.h \
     $$PWD/sshchannel_p.h \
@@ -79,29 +93,26 @@ HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sftpoutgoingpacket_p.h \
     $$PWD/sftpoperation_p.h \
     $$PWD/sftpincomingpacket_p.h \
-    $$PWD/sftpdefs.h \
-    $$PWD/sftpchannel.h \
     $$PWD/sftpchannel_p.h \
-    $$PWD/sshremoteprocessrunner.h \
-    $$PWD/sshconnectionmanager.h \
-    $$PWD/sshpseudoterminal.h \
     $$PWD/sshkeypasswordretriever_p.h \
-    $$PWD/sftpfilesystemmodel.h \
     $$PWD/sshdirecttcpiptunnel_p.h \
-    $$PWD/sshdirecttcpiptunnel.h \
     $$PWD/sshinit_p.h \
-    $$PWD/sshhostkeydatabase.h \
     $$PWD/sshlogging_p.h \
-    $$PWD/sshtcpipforwardserver.h \
     $$PWD/sshtcpipforwardserver_p.h \
     $$PWD/sshtcpiptunnel_p.h \
-    $$PWD/sshforwardedtcpiptunnel.h \
     $$PWD/sshforwardedtcpiptunnel_p.h \
     $$PWD/sshagent_p.h \
-    $$PWD/ssh_global.h \
     $$PWD/sshx11channel_p.h \
     $$PWD/sshx11displayinfo_p.h \
-    $$PWD/sshx11inforetriever_p.h
+    $$PWD/sshx11inforetriever_p.h \
     $$PWD/opensshkeyfilereader_p.h \
 
 RESOURCES += $$PWD/ssh.qrc
+
+
+headers.files = $$PUBLIC_HEADERS
+headers.path = $$[QT_INSTALL_PREFIX]/include/QSsh
+
+target.path = $$[QT_INSTALL_LIBS]
+
+INSTALLS += target headers
