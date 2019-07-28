@@ -33,7 +33,7 @@
 
 #include <botan/mode_pad.h>
 #include <botan/hmac.h>
-#include <botan/key_filt.h>
+#include <botan/filters.h>
 #include <botan/block_cipher.h>
 #include <botan/pipe.h>
 #include <botan/bigint.h>
