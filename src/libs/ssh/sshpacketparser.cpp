@@ -69,10 +69,10 @@ quint32 SshPacketParser::asUint32(const QByteArray &data, quint32 offset)
     if (size(data) < offset + 4)
         throw SshPacketParseException();
     const quint32 value =
-          ((quint32(data.at(offset) + 0) & 0xff) << 24)
-        + ((quint32(data.at(offset) + 1) & 0xff) << 16)
-        + ((quint32(data.at(offset) + 2) & 0xff) << 8)
-        + (quint32(data.at(offset + 3)) & 0xff);
+          ((quint32(data.at(offset + 0)) & 0xff) << 24)
+        + ((quint32(data.at(offset + 1)) & 0xff) << 16)
+        + ((quint32(data.at(offset + 2)) & 0xff) << 8)
+        +  (quint32(data.at(offset + 3)) & 0xff);
     return value;
 }
 
