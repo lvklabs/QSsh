@@ -69,8 +69,8 @@ quint32 SshPacketParser::asUint32(const QByteArray &data, quint32 offset)
     if (size(data) < offset + 4)
         throw SshPacketParseException();
     const quint32 value = ((data.at(offset) & 0xff) << 24)
-        + ((data.at(offset + 1) & 0xff) << 16)
-        + ((data.at(offset + 2) & 0xff) << 8) + (data.at(offset + 3) & 0xff);
+        + ((quint32(data.at(offset + 1)) & 0xff) << 16)
+        + ((quint32(data.at(offset + 2)) & 0xff) << 8) + (data.at(offset + 3) & 0xff);
     return value;
 }
 
@@ -85,14 +85,15 @@ quint64 SshPacketParser::asUint64(const QByteArray &data, quint32 offset)
 {
     if (size(data) < offset + 8)
         throw SshPacketParseException();
-    const quint64 value = (static_cast<quint64>(data.at(offset) & 0xff) << 56)
-        + (static_cast<quint64>(data.at(offset + 1) & 0xff) << 48)
-        + (static_cast<quint64>(data.at(offset + 2) & 0xff) << 40)
-        + (static_cast<quint64>(data.at(offset + 3) & 0xff) << 32)
-        + ((data.at(offset + 4) & 0xff) << 24)
-        + ((data.at(offset + 5) & 0xff) << 16)
-        + ((data.at(offset + 6) & 0xff) << 8)
-        + (data.at(offset + 7) & 0xff);
+    const quint64 value =
+          ((quint64(data.at(offset + 0)) & 0xff) << 56)
+        + ((quint64(data.at(offset + 1)) & 0xff) << 48)
+        + ((quint64(data.at(offset + 2)) & 0xff) << 40)
+        + ((quint64(data.at(offset + 3)) & 0xff) << 32)
+        + ((quint64(data.at(offset + 4)) & 0xff) << 24)
+        + ((quint64(data.at(offset + 5)) & 0xff) << 16)
+        + ((quint64(data.at(offset + 6)) & 0xff) << 8)
+        + (quint64(data.at(offset + 7)) & 0xff);
     return value;
 }
 

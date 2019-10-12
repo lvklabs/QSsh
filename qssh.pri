@@ -54,6 +54,8 @@ macx {
 
 QT += widgets
 
+CONFIG += warn_on
+
 # Find botan2
 CONFIG += link_pkgconfig
 PKGCONFIG += botan-2

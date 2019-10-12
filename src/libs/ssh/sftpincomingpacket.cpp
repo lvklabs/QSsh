@@ -198,14 +198,6 @@ SftpFileAttributes SftpIncomingPacket::asFileAttributes(quint32 &offset) const
     attributes.permissionsPresent = flags & SSH_FILEXFER_ATTR_PERMISSIONS;
     if (attributes.sizePresent) {
         attributes.size = SshPacketParser::asUint64(m_data, &offset);
-
-        // For some reason some servers actually send 32 bit size, and only way
-        // to distinguish that that I've seen is that all the upper 32 bits are
-        // set. So check for that, and if so mask out the upper bits (no files
-        // are going to be that big in the nearest future anyways.
-        if (attributes.size >> 32 == 0xffffffffu) {
-            attributes.size &= 0xffffffffu;
-        }
     }
     if (attributes.uidAndGidPresent) {
         attributes.uid = SshPacketParser::asUint32(m_data, &offset);
