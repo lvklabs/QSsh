@@ -633,6 +633,7 @@ void tst_Ssh::sftp()
     connect(sftpChannel.data(), &SftpChannel::closed, &loop, &QEventLoop::quit);
     connect(sftpChannel.data(), &SftpChannel::finished,
             [&loop, &jobs, &invalidFinishedSignal, &jobError](SftpJobId job, const SftpError errorType, const QString &error) {
+        Q_UNUSED(errorType);
         if (!jobs.removeOne(job)) {
             invalidFinishedSignal = true;
             loop.quit();

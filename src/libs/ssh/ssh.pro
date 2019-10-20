@@ -14,11 +14,17 @@ win32 {
     DLLDESTDIR = $$[QT_INSTALL_LIBS]
 }
 
+!win32-msvc* {
+    QMAKE_CXXFLAGS += -Wextra -pedantic
+}
+
 DESTDIR = $$IDE_LIBRARY_PATH
 
 TARGET = $$qtLibraryName($$TARGET)
 
-CONFIG += shared dll
+CONFIG += shared dll warn_on
+
+DEFINES += QT_DEPRECATED_WARNINGS
 
 contains(QT_CONFIG, reduce_exports):CONFIG += hide_symbols
 
