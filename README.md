@@ -11,7 +11,8 @@ Unfortunately Qt Creator has decided to start using openssh instead, so this is
 now the most up to date maintained version.
 
 
-### Compiling QSsh
+Compiling QSsh
+--------------
 
 Prerequisites:
    * [Qt](https://www.qt.io/)
@@ -27,7 +28,8 @@ qmake ../qssh.pro
 make (or mingw32-make or nmake depending on your platform)
 ```
 
-### Examples
+Examples
+--------
 
  * [ssh shell](tests/manual/ssh/shell/), similar to a normal command line `ssh` client.
  * [Graphical SFTP browser](tests/manual/ssh/sftpfsmodel/), how to use the SFTP file system model with a QTreeView.
