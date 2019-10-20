@@ -41,6 +41,8 @@ QT_END_NAMESPACE
 
 namespace QSsh {
 class SshHostKeyDatabase;
+
+/// Convenience typedef
 typedef QSharedPointer<SshHostKeyDatabase> SshHostKeyDatabasePtr;
 
 class QSSH_EXPORT SshHostKeyDatabase

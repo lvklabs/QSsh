@@ -31,6 +31,7 @@
 #include "sftpchannel.h"
 #include "sftpchannel_p.h"
 
+#include "sftpdefs.h"
 #include "sshexception_p.h"
 #include "sshincomingpacket_p.h"
 #include "sshlogging_p.h"
@@ -38,31 +39,6 @@
 
 #include <QDir>
 #include <QFile>
-
-/*!
-    \class QSsh::SftpChannel
-
-    \brief This class provides SFTP operations.
-
-    Objects are created via SshConnection::createSftpChannel().
-    The channel needs to be initialized with
-    a call to initialize() and is closed via closeChannel(). After closing
-    a channel, no more operations are possible. It cannot be re-opened
-    using initialize(); use SshConnection::createSftpChannel() if you need
-    a new one.
-
-    After the initialized() signal has been emitted, operations can be started.
-    All SFTP operations are asynchronous (non-blocking) and can be in-flight
-    simultaneously (though callers must ensure that concurrently running jobs
-    are independent of each other, e.g. they must not write to the same file).
-    Operations are identified by their job id, which is returned by
-    the respective member function. If the function can right away detect that
-    the operation cannot succeed, it returns SftpInvalidJob. If an error occurs
-    later, the finished() signal is emitted for the respective job with a
-    non-empty error string.
-
-    Note that directory names must not have a trailing slash.
-*/
 
 namespace QSsh {
 namespace Internal {
@@ -229,13 +205,13 @@ SftpJobId SftpChannel::createFile(const QString &path, SftpOverwriteMode mode)
         new Internal::SftpCreateFile(++d->m_nextJobId, path, mode)));
 }
 
-SftpJobId SftpChannel::uploadFile(QSharedPointer<QIODevice> localFile,
+SftpJobId SftpChannel::uploadFile(QSharedPointer<QIODevice> device,
     const QString &remoteFilePath, SftpOverwriteMode mode)
 {
-    if (!localFile->isOpen() && !localFile->open(QIODevice::ReadOnly))
+    if (!device->isOpen() && !device->open(QIODevice::ReadOnly))
         return SftpInvalidJob;
     return d->createJob(Internal::SftpUploadFile::Ptr(
-        new Internal::SftpUploadFile(++d->m_nextJobId, remoteFilePath, localFile, mode)));
+        new Internal::SftpUploadFile(++d->m_nextJobId, remoteFilePath, device, mode)));
 }
 
 SftpJobId SftpChannel::uploadFile(const QString &localFilePath,
@@ -256,10 +232,10 @@ SftpJobId SftpChannel::downloadFile(const QString &remoteFilePath,
         new Internal::SftpDownload(++d->m_nextJobId, remoteFilePath, localFile, mode)));
 }
 
-SftpJobId SftpChannel::downloadFile(const QString &remoteFilePath, QSharedPointer<QIODevice> localFile)
+SftpJobId SftpChannel::downloadFile(const QString &remoteFilePath, QSharedPointer<QIODevice> device)
 {
     return d->createJob(Internal::SftpDownload::Ptr(
-        new Internal::SftpDownload(++d->m_nextJobId, remoteFilePath, localFile, SftpOverwriteExisting)));
+        new Internal::SftpDownload(++d->m_nextJobId, remoteFilePath, device, SftpOverwriteExisting)));
 }
 
 SftpJobId SftpChannel::uploadDir(const QString &localDirPath,

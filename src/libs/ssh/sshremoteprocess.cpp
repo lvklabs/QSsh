@@ -44,19 +44,6 @@
 #include <cstring>
 #include <cstdlib>
 
-/*!
-    \class QSsh::SshRemoteProcess
-
-    \brief This class implements an SSH channel for running a remote process.
-
-    Objects are created via SshConnection::createRemoteProcess.
-    The process is started via the start() member function.
-    If the process needs a pseudo terminal, you can request one
-    via requestTerminal() before calling start().
-    Note that this class does not support QIODevice's waitFor*() functions, i.e. it has
-    no synchronous mode.
- */
-
 namespace QSsh {
 
 const struct {

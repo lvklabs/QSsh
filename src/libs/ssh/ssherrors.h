@@ -35,10 +35,39 @@
 
 namespace QSsh {
 
+/*!
+ * \brief SSH specific errors
+ */
 enum SshError {
-    SshNoError, SshSocketError, SshTimeoutError, SshProtocolError,
-    SshHostKeyError, SshKeyFileError, SshAuthenticationError,
-    SshClosedByServerError, SshAgentError, SshInternalError
+    /// No error has occured
+    SshNoError,
+
+    /// There was a network socket error
+    SshSocketError,
+
+    /// The connection timed out
+    SshTimeoutError,
+
+    /// There was an error communicating with the server
+    SshProtocolError,
+
+    /// There was a problem with the remote host key
+    SshHostKeyError,
+
+    /// We failed to read or parse the key file used for authentication
+    SshKeyFileError,
+
+    /// We failed to authenticate
+    SshAuthenticationError,
+
+    /// The server closed our connection
+    SshClosedByServerError,
+
+    /// The ssh-agent used for authenticating failed somehow
+    SshAgentError,
+
+    /// Something bad happened on the server
+    SshInternalError
 };
 
 } // namespace QSsh

@@ -36,36 +36,81 @@
 #include <QFile>
 #include <QString>
 
+/*!
+ * \namespace QSsh
+ * \brief The namespace used for the entire library
+ */
 namespace QSsh {
 
+
+/*!
+ *\brief Unique ID used for tracking individual jobs.
+ */
 typedef quint32 SftpJobId;
+
+/*!
+    Special ID representing an invalid job, e. g. if a requested job could not be started.
+*/
 QSSH_EXPORT extern const SftpJobId SftpInvalidJob;
 
+
+/*!
+ * \brief The behavior when uploading a file and the remote path already exists
+ */
 enum SftpOverwriteMode {
-    SftpOverwriteExisting, SftpAppendToExisting, SftpSkipExisting
+    /*! Overwrite any existing files */
+    SftpOverwriteExisting,
+
+    /*! Append new content if the file already exists */
+    SftpAppendToExisting,
+
+    /*! If the file or directory already exists skip it */
+    SftpSkipExisting
 };
 
+/*!
+ * \brief The type of a remote file.
+ */
 enum SftpFileType { FileTypeRegular, FileTypeDirectory, FileTypeOther, FileTypeUnknown };
 
+/*!
+ * \brief Possible errors.
+*/
 enum SftpError { NoError, EndOfFile, FileNotFound, PermissionDenied, GenericFailure, BadMessage, NoConnection, ConnectionLost, UnsupportedOperation  };
 
+/*!
+    \brief Contains information about a remote file.
+*/
 class QSSH_EXPORT SftpFileInfo
 {
 public:
     SftpFileInfo() : type(FileTypeUnknown), sizeValid(false), permissionsValid(false) { }
 
+    /// The remote file name, only file attribute required by the RFC to be present so this is always set
     QString name;
+
+    /// The type of file
     SftpFileType type = FileTypeUnknown;
+
+    /// The remote file size in bytes.
     quint64 size = 0;
-    QFile::Permissions permissions{};
-    
-    //add by hadesjaky 2017.7.2 add file time
+
+    /// The permissions set on the file, might be empty as the RFC allows an SFTP server not to support any file attributes beyond the name.
+    QFileDevice::Permissions permissions{};
+
+    /// Last time file was accessed.
     quint32 atime = 0;
-    quint32 mtime = 0;//modify time    
+
+    /// Last time file was modified.
+    quint32 mtime = 0;
+
+    /// If the timestamps (\ref atime and \ref mtime) are valid, the RFC allows an SFTP server not to support any file attributes beyond the name.
     bool timestampsValid = false;
 
-    // The RFC allows an SFTP server not to support any file attributes beyond the name.
+    /// The RFC allows an SFTP server not to support any file attributes beyond the name.
     bool sizeValid = false;
+
+    /// The RFC allows an SFTP server not to support any file attributes beyond the name.
     bool permissionsValid = false;
 };
 

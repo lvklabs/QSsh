@@ -53,18 +53,11 @@
 #include <QRegExp>
 #include <QTcpSocket>
 
-/*!
-    \class QSsh::SshConnection
-
-    \brief This class provides an SSH connection, implementing protocol version 2.0
-
-    It can spawn channels for remote execution and SFTP operations (version 3).
-    It operates asynchronously (non-blocking) and is not thread-safe.
-*/
-
 namespace QSsh {
 
+namespace {
 const QByteArray ClientId("SSH-2.0-QtCreator\r\n");
+}
 
 SshConnectionParameters::SshConnectionParameters() :
     timeout(0), authenticationType(AuthenticationTypePublicKey),
@@ -92,7 +85,6 @@ bool operator!=(const SshConnectionParameters &p1, const SshConnectionParameters
 {
     return !equals(p1, p2);
 }
-
 
 SshConnection::SshConnection(const SshConnectionParameters &serverInfo, QObject *parent)
     : QObject(parent)
