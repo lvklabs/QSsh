@@ -32,7 +32,6 @@
 #define SFTCHANNEL_H
 
 #include "sftpdefs.h"
-#include "sftpincomingpacket_p.h"
 
 #include "ssh_global.h"
 
