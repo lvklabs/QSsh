@@ -30,9 +30,12 @@
 
 #include "sshremoteprocess.h"
 #include "sshremoteprocess_p.h"
+#include "sshlogging_p.h"
 
+#include "ssh_global.h"
 #include "sshincomingpacket_p.h"
 #include "sshsendfacility_p.h"
+#include "sshx11displayinfo_p.h"
 
 #include <botan/exceptn.h>
 
@@ -41,32 +44,19 @@
 #include <cstring>
 #include <cstdlib>
 
-/*!
-    \class QSsh::SshRemoteProcess
-
-    \brief This class implements an SSH channel for running a remote process.
-
-    Objects are created via SshConnection::createRemoteProcess.
-    The process is started via the start() member function.
-    If the process needs a pseudo terminal, you can request one
-    via requestTerminal() before calling start().
-    Note that this class does not support QIODevice's waitFor*() functions, i.e. it has
-    no synchronous mode.
- */
-
 namespace QSsh {
 
 const struct {
     SshRemoteProcess::Signal signalEnum;
     const char * const signalString;
 } signalMap[] = {
-    { SshRemoteProcess::AbrtSignal, "ABRT" }, { SshRemoteProcess::AlrmSignal, "ALRM" },
-    { SshRemoteProcess::FpeSignal, "FPE" }, { SshRemoteProcess::HupSignal, "HUP" },
-    { SshRemoteProcess::IllSignal, "ILL" }, { SshRemoteProcess::IntSignal, "INT" },
-    { SshRemoteProcess::KillSignal, "KILL" }, { SshRemoteProcess::PipeSignal, "PIPE" },
-    { SshRemoteProcess::QuitSignal, "QUIT" }, { SshRemoteProcess::SegvSignal, "SEGV" },
-    { SshRemoteProcess::TermSignal, "TERM" }, { SshRemoteProcess::Usr1Signal, "USR1" },
-    { SshRemoteProcess::Usr2Signal, "USR2" }
+    {SshRemoteProcess::AbrtSignal, "ABRT"}, {SshRemoteProcess::AlrmSignal, "ALRM"},
+    {SshRemoteProcess::FpeSignal, "FPE"}, {SshRemoteProcess::HupSignal, "HUP"},
+    {SshRemoteProcess::IllSignal, "ILL"}, {SshRemoteProcess::IntSignal, "INT"},
+    {SshRemoteProcess::KillSignal, "KILL"}, {SshRemoteProcess::PipeSignal, "PIPE"},
+    {SshRemoteProcess::QuitSignal, "QUIT"}, {SshRemoteProcess::SegvSignal, "SEGV"},
+    {SshRemoteProcess::TermSignal, "TERM"}, {SshRemoteProcess::Usr1Signal, "USR1"},
+    {SshRemoteProcess::Usr2Signal, "USR2"}
 };
 
 SshRemoteProcess::SshRemoteProcess(const QByteArray &command, quint32 channelId,
@@ -84,9 +74,8 @@ SshRemoteProcess::SshRemoteProcess(quint32 channelId, Internal::SshSendFacility 
 
 SshRemoteProcess::~SshRemoteProcess()
 {
-    Q_ASSERT(d->channelState() == Internal::SshRemoteProcessPrivate::Inactive
-        || d->channelState() == Internal::SshRemoteProcessPrivate::CloseRequested
-        || d->channelState() == Internal::SshRemoteProcessPrivate::Closed);
+    QSSH_ASSERT(d->channelState() != Internal::AbstractSshChannel::SessionEstablished);
+    close();
     delete d;
 }
 
@@ -159,20 +148,29 @@ void SshRemoteProcess::setReadChannel(QProcess::ProcessChannel channel)
 
 void SshRemoteProcess::init()
 {
-    connect(d, SIGNAL(started()), this, SIGNAL(started()),
-        Qt::QueuedConnection);
-    connect(d, SIGNAL(readyReadStandardOutput()), this, SIGNAL(readyReadStandardOutput()),
-        Qt::QueuedConnection);
-    connect(d, SIGNAL(readyRead()), this, SIGNAL(readyRead()), Qt::QueuedConnection);
-    connect(d, SIGNAL(readyReadStandardError()), this,
-        SIGNAL(readyReadStandardError()), Qt::QueuedConnection);
-    connect(d, SIGNAL(closed(int)), this, SIGNAL(closed(int)), Qt::QueuedConnection);
+    connect(d, &Internal::SshRemoteProcessPrivate::started,
+            this, &SshRemoteProcess::started, Qt::QueuedConnection);
+    connect(d, &Internal::SshRemoteProcessPrivate::readyReadStandardOutput,
+            this, &SshRemoteProcess::readyReadStandardOutput, Qt::QueuedConnection);
+    connect(d, &Internal::SshRemoteProcessPrivate::readyRead,
+            this, &SshRemoteProcess::readyRead, Qt::QueuedConnection);
+    connect(d, &Internal::SshRemoteProcessPrivate::readyReadStandardError,
+            this, &SshRemoteProcess::readyReadStandardError, Qt::QueuedConnection);
+    connect(d, &Internal::SshRemoteProcessPrivate::closed,
+            this, &SshRemoteProcess::closed, Qt::QueuedConnection);
+    connect(d, &Internal::SshRemoteProcessPrivate::eof,
+            this, &SshRemoteProcess::readChannelFinished, Qt::QueuedConnection);
 }
 
 void SshRemoteProcess::addToEnvironment(const QByteArray &var, const QByteArray &value)
 {
     if (d->channelState() == Internal::SshRemoteProcessPrivate::Inactive)
         d->m_env << qMakePair(var, value); // Cached locally and sent on start()
+}
+
+void SshRemoteProcess::clearEnvironment()
+{
+    d->m_env.clear();
 }
 
 void SshRemoteProcess::requestTerminal(const SshPseudoTerminal &terminal)
@@ -182,12 +180,16 @@ void SshRemoteProcess::requestTerminal(const SshPseudoTerminal &terminal)
     d->m_terminal = terminal;
 }
 
+void SshRemoteProcess::requestX11Forwarding(const QString &displayName)
+{
+    QSSH_ASSERT_AND_RETURN(d->channelState() == Internal::SshRemoteProcessPrivate::Inactive);
+    d->m_x11DisplayName = displayName;
+}
+
 void SshRemoteProcess::start()
 {
     if (d->channelState() == Internal::SshRemoteProcessPrivate::Inactive) {
-#ifdef CREATOR_SSH_DEBUG
-        qDebug("process start requested, channel id = %u", d->localChannelId());
-#endif
+        qCDebug(Internal::sshLog, "process start requested, channel id = %u", d->localChannelId());
         QIODevice::open(QIODevice::ReadWrite);
         d->requestSessionStart();
     }
@@ -205,8 +207,8 @@ void SshRemoteProcess::sendSignal(Signal signal)
             QSSH_ASSERT_AND_RETURN(signalString);
             d->m_sendFacility.sendChannelSignalPacket(d->remoteChannel(), signalString);
         }
-    }  catch (Botan::Exception &e) {
-        setErrorString(QString::fromAscii(e.what()));
+    }  catch (const std::exception &e) {
+        setErrorString(QString::fromLocal8Bit(e.what()));
         d->closeChannel();
     }
 }
@@ -224,6 +226,14 @@ SshRemoteProcess::Signal SshRemoteProcess::exitSignal() const
 }
 
 namespace Internal {
+
+void SshRemoteProcessPrivate::failToStart(const QString &reason)
+{
+    if (m_procState != NotYetStarted)
+        return;
+    m_proc->setErrorString(reason);
+    setProcState(StartFailed);
+}
 
 SshRemoteProcessPrivate::SshRemoteProcessPrivate(const QByteArray &command,
         quint32 channelId, SshSendFacility &sendFacility, SshRemoteProcess *proc)
@@ -257,9 +267,7 @@ void SshRemoteProcessPrivate::init()
 
 void SshRemoteProcessPrivate::setProcState(ProcessState newState)
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("channel: old state = %d,new state = %d", m_procState, newState);
-#endif
+    qCDebug(sshLog, "channel: old state = %d,new state = %d", m_procState, newState);
     m_procState = newState;
     if (newState == StartFailed) {
         emit closed(SshRemoteProcess::FailedToStart);
@@ -286,26 +294,41 @@ void SshRemoteProcessPrivate::closeHook()
 
 void SshRemoteProcessPrivate::handleOpenSuccessInternal()
 {
-   foreach (const EnvVar &envVar, m_env) {
-       m_sendFacility.sendEnvPacket(remoteChannel(), envVar.first,
-           envVar.second);
-   }
+    if (m_x11DisplayName.isEmpty())
+        startProcess(X11DisplayInfo());
+    else
+        emit x11ForwardingRequested(m_x11DisplayName);
+}
 
-   if (m_useTerminal)
-       m_sendFacility.sendPtyRequestPacket(remoteChannel(), m_terminal);
+void SshRemoteProcessPrivate::startProcess(const X11DisplayInfo &displayInfo)
+{
+    if (m_procState != NotYetStarted)
+        return;
 
-   if (m_isShell)
-       m_sendFacility.sendShellPacket(remoteChannel());
-   else
-       m_sendFacility.sendExecPacket(remoteChannel(), m_command);
-   setProcState(ExecRequested);
-   m_timeoutTimer->start(ReplyTimeout);
+    foreach (const EnvVar &envVar, m_env) {
+        m_sendFacility.sendEnvPacket(remoteChannel(), envVar.first,
+            envVar.second);
+    }
+
+    if (!m_x11DisplayName.isEmpty()) {
+        m_sendFacility.sendX11ForwardingPacket(remoteChannel(), displayInfo.protocol,
+                                               displayInfo.randomCookie.toHex(), 0);
+    }
+
+    if (m_useTerminal)
+        m_sendFacility.sendPtyRequestPacket(remoteChannel(), m_terminal);
+
+    if (m_isShell)
+        m_sendFacility.sendShellPacket(remoteChannel());
+    else
+        m_sendFacility.sendExecPacket(remoteChannel(), m_command);
+    setProcState(ExecRequested);
+    m_timeoutTimer.start(ReplyTimeout);
 }
 
 void SshRemoteProcessPrivate::handleOpenFailureInternal(const QString &reason)
 {
-   setProcState(StartFailed);
-   m_proc->setErrorString(reason);
+    failToStart(reason);
 }
 
 void SshRemoteProcessPrivate::handleChannelSuccess()
@@ -314,7 +337,7 @@ void SshRemoteProcessPrivate::handleChannelSuccess()
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Unexpected SSH_MSG_CHANNEL_SUCCESS message.");
     }
-    m_timeoutTimer->stop();
+    m_timeoutTimer.stop();
     setProcState(Running);
 }
 
@@ -324,7 +347,7 @@ void SshRemoteProcessPrivate::handleChannelFailure()
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Unexpected SSH_MSG_CHANNEL_FAILURE message.");
     }
-    m_timeoutTimer->stop();
+    m_timeoutTimer.stop();
     setProcState(StartFailed);
     closeChannel();
 }
@@ -341,7 +364,7 @@ void SshRemoteProcessPrivate::handleChannelExtendedDataInternal(quint32 type,
     const QByteArray &data)
 {
     if (type != SSH_EXTENDED_DATA_STDERR) {
-        qWarning("Unknown extended data type %u", type);
+        qCWarning(sshLog, "Unknown extended data type %u", type);
     } else {
         m_stderr += data;
         emit readyReadStandardError();
@@ -352,18 +375,14 @@ void SshRemoteProcessPrivate::handleChannelExtendedDataInternal(quint32 type,
 
 void SshRemoteProcessPrivate::handleExitStatus(const SshChannelExitStatus &exitStatus)
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("Process exiting with exit code %d", exitStatus.exitStatus);
-#endif
+    qCDebug(sshLog, "Process exiting with exit code %d", exitStatus.exitStatus);
     m_exitCode = exitStatus.exitStatus;
     m_procState = Exited;
 }
 
 void SshRemoteProcessPrivate::handleExitSignal(const SshChannelExitSignal &signal)
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("Exit due to signal %s", signal.signal.data());
-#endif
+    qCDebug(sshLog, "Exit due to signal %s", signal.signal.data());
 
     for (size_t i = 0; i < sizeof signalMap/sizeof *signalMap; ++i) {
         if (signalMap[i].signalString == signal.signal) {
@@ -375,7 +394,7 @@ void SshRemoteProcessPrivate::handleExitSignal(const SshChannelExitSignal &signa
     }
 
     throw SshServerException(SSH_DISCONNECT_PROTOCOL_ERROR, "Invalid signal",
-        tr("Server sent invalid signal '%1'").arg(QString::fromUtf8(signal.signal)));
+        tr("Server sent invalid signal \"%1\"").arg(QString::fromUtf8(signal.signal)));
 }
 
 } // namespace Internal

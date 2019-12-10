@@ -34,11 +34,11 @@
 #include "sshconnection.h"
 #include "sshexception_p.h"
 #include "sshincomingpacket_p.h"
-#include "sshremoteprocess.h"
 #include "sshsendfacility_p.h"
 
 #include <QHash>
 #include <QList>
+#include <QQueue>
 #include <QObject>
 #include <QPair>
 #include <QScopedPointer>
@@ -50,6 +50,9 @@ QT_END_NAMESPACE
 
 namespace QSsh {
 class SftpChannel;
+class SshRemoteProcess;
+class SshDirectTcpIpTunnel;
+class SshTcpIpForwardServer;
 
 namespace Internal {
 class SshChannelManager;
@@ -60,6 +63,7 @@ enum SshStateInternal {
     SocketConnecting, // After connectToHost()
     SocketConnected, // After socket's connected() signal
     UserAuthServiceRequested,
+    WaitingForAgentKeys,
     UserAuthRequested,
     ConnectionEstablished // After service has been started
     // ...
@@ -88,8 +92,13 @@ public:
     QSharedPointer<SshRemoteProcess> createRemoteProcess(const QByteArray &command);
     QSharedPointer<SshRemoteProcess> createRemoteShell();
     QSharedPointer<SftpChannel> createSftpChannel();
+    QSharedPointer<SshDirectTcpIpTunnel> createDirectTunnel(const QString &originatingHost,
+            quint16 originatingPort, const QString &remoteHost, quint16 remotePort);
+    QSharedPointer<SshTcpIpForwardServer> createForwardServer(const QString &remoteHost,
+            quint16 remotePort);
+
     SshStateInternal state() const { return m_state; }
-    SshError error() const { return m_error; }
+    SshError errorState() const { return m_error; }
     QString errorString() const { return m_errorString; }
 
 signals:
@@ -99,12 +108,18 @@ signals:
     void error(QSsh::SshError);
 
 private:
-    Q_SLOT void handleSocketConnected();
-    Q_SLOT void handleIncomingData();
-    Q_SLOT void handleSocketError();
-    Q_SLOT void handleSocketDisconnected();
-    Q_SLOT void handleTimeout();
-    Q_SLOT void sendKeepAlivePacket();
+    void handleSocketConnected();
+    void handleIncomingData();
+    void handleSocketError();
+    void handleSocketDisconnected();
+    void handleTimeout();
+    void sendKeepAlivePacket();
+
+    void handleAgentKeysUpdated();
+    void handleSignatureFromAgent(const QByteArray &key, const QByteArray &signature, uint token);
+    void tryAllAgentKeys();
+    void authenticateWithPublicKey();
+    void setAgentError();
 
     void handleServerId();
     void handlePackets();
@@ -114,9 +129,12 @@ private:
     void handleNewKeysPacket();
     void handleServiceAcceptPacket();
     void handlePasswordExpiredPacket();
+    void handleUserAuthInfoRequestPacket();
     void handleUserAuthSuccessPacket();
     void handleUserAuthFailurePacket();
+    void handleUserAuthKeyOkPacket();
     void handleUserAuthBannerPacket();
+    void handleUnexpectedPacket();
     void handleGlobalRequest();
     void handleDebugPacket();
     void handleUnimplementedPacket();
@@ -132,10 +150,15 @@ private:
     void handleChannelEof();
     void handleChannelClose();
     void handleDisconnect();
+    void handleRequestSuccess();
+    void handleRequestFailure();
+
     bool canUseSocket() const;
     void createPrivateKey();
 
     void sendData(const QByteArray &data);
+
+    uint tokenForAgent() const;
 
     typedef void (SshConnectionPrivate::*PacketHandler)();
     typedef QList<SshStateInternal> StateList;
@@ -165,7 +188,12 @@ private:
     SshConnection *m_conn;
     quint64 m_lastInvalidMsgSeqNr;
     QByteArray m_serverId;
+    QByteArray m_agentSignature;
+    QQueue<QByteArray> m_pendingKeyChecks;
+    QByteArray m_agentKeyToUse;
     bool m_serverHasSentDataBeforeId;
+    bool m_triedAllPasswordBasedMethods;
+    bool m_agentKeysUpToDate;
 };
 
 } // namespace Internal

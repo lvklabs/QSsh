@@ -81,15 +81,14 @@ signals:
     // Success <=> error.isEmpty().
     void sftpOperationFinished(QSsh::SftpJobId, const QString &error);
 
-private slots:
+private:
     void handleSshConnectionEstablished();
     void handleSshConnectionFailure();
     void handleSftpChannelInitialized();
-    void handleSftpChannelInitializationFailed(const QString &reason);
+    void handleSftpChannelError(const QString &reason);
     void handleFileInfo(QSsh::SftpJobId jobId, const QList<QSsh::SftpFileInfo> &fileInfoList);
-    void handleSftpJobFinished(QSsh::SftpJobId jobId, const QString &errorMessage);
+    void handleSftpJobFinished(QSsh::SftpJobId jobId, const SftpError error, const QString &errorMessage);
 
-private:
     int columnCount(const QModelIndex &parent = QModelIndex()) const;
     Qt::ItemFlags flags(const QModelIndex &index) const;
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;

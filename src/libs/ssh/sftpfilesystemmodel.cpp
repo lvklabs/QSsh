@@ -100,7 +100,7 @@ SftpFileSystemModel::SftpFileSystemModel(QObject *parent)
     : QAbstractItemModel(parent), d(new SftpFileSystemModelPrivate)
 {
     d->sshConnection = 0;
-    d->rootDirectory = QLatin1String("/");
+    d->rootDirectory = QLatin1Char('/');
     d->rootNode = 0;
     d->statJobId = SftpInvalidJob;
 }
@@ -114,13 +114,15 @@ SftpFileSystemModel::~SftpFileSystemModel()
 void SftpFileSystemModel::setSshConnection(const SshConnectionParameters &sshParams)
 {
     QSSH_ASSERT_AND_RETURN(!d->sshConnection);
-    d->sshConnection = SshConnectionManager::instance().acquireConnection(sshParams);
-    connect(d->sshConnection, SIGNAL(error(QSsh::SshError)), SLOT(handleSshConnectionFailure()));
+    d->sshConnection = QSsh::acquireConnection(sshParams);
+    connect(d->sshConnection, &SshConnection::error,
+            this, &SftpFileSystemModel::handleSshConnectionFailure);
     if (d->sshConnection->state() == SshConnection::Connected) {
         handleSshConnectionEstablished();
         return;
     }
-    connect(d->sshConnection, SIGNAL(connected()), SLOT(handleSshConnectionEstablished()));
+    connect(d->sshConnection, &SshConnection::connected,
+            this, &SftpFileSystemModel::handleSshConnectionEstablished);
     if (d->sshConnection->state() == SshConnection::Unconnected)
         d->sshConnection->connectToHost();
 }
@@ -168,11 +170,11 @@ QVariant SftpFileSystemModel::data(const QModelIndex &index, int role) const
         switch (node->fileInfo.type) {
         case FileTypeRegular:
         case FileTypeOther:
-            return QIcon(QLatin1String(":/core/images/unknownfile.png"));
+            return QIcon(":/ssh/images/unknownfile.png");
         case FileTypeDirectory:
-            return QIcon(QLatin1String(":/core/images/dir.png"));
+            return QIcon(":/ssh/images/dir.png");
         case FileTypeUnknown:
-            return QIcon(QLatin1String(":/core/images/help.png")); // Shows a question mark.
+            return QIcon(":/ssh/images/help.png"); // Shows a question mark.
         }
     }
     if (index.column() == 1) {
@@ -256,6 +258,10 @@ int SftpFileSystemModel::rowCount(const QModelIndex &parent) const
 
 void SftpFileSystemModel::statRootDirectory()
 {
+    if (!d->sftpChannel) {
+        return;
+    }
+
     d->statJobId = d->sftpChannel->statFile(d->rootDirectory);
 }
 
@@ -268,7 +274,7 @@ void SftpFileSystemModel::shutDown()
     }
     if (d->sshConnection) {
         disconnect(d->sshConnection, 0, this, 0);
-        SshConnectionManager::instance().releaseConnection(d->sshConnection);
+        QSsh::releaseConnection(d->sshConnection);
         d->sshConnection = 0;
     }
     delete d->rootNode;
@@ -286,23 +292,24 @@ void SftpFileSystemModel::handleSshConnectionFailure()
 void SftpFileSystemModel::handleSftpChannelInitialized()
 {
     connect(d->sftpChannel.data(),
-        SIGNAL(fileInfoAvailable(QSsh::SftpJobId,QList<QSsh::SftpFileInfo>)),
-        SLOT(handleFileInfo(QSsh::SftpJobId,QList<QSsh::SftpFileInfo>)));
-    connect(d->sftpChannel.data(), SIGNAL(finished(QSsh::SftpJobId,QString)),
-        SLOT(handleSftpJobFinished(QSsh::SftpJobId,QString)));
+        &SftpChannel::fileInfoAvailable,
+        this, &SftpFileSystemModel::handleFileInfo);
+    connect(d->sftpChannel.data(), &SftpChannel::finished,
+        this, &SftpFileSystemModel::handleSftpJobFinished);
     statRootDirectory();
 }
 
 void SftpFileSystemModel::handleSshConnectionEstablished()
 {
     d->sftpChannel = d->sshConnection->createSftpChannel();
-    connect(d->sftpChannel.data(), SIGNAL(initialized()), SLOT(handleSftpChannelInitialized()));
-    connect(d->sftpChannel.data(), SIGNAL(initializationFailed(QString)),
-        SLOT(handleSftpChannelInitializationFailed(QString)));
+    connect(d->sftpChannel.data(), &SftpChannel::initialized,
+            this, &SftpFileSystemModel::handleSftpChannelInitialized);
+    connect(d->sftpChannel.data(), &SftpChannel::channelError,
+            this, &SftpFileSystemModel::handleSftpChannelError);
     d->sftpChannel->initialize();
 }
 
-void SftpFileSystemModel::handleSftpChannelInitializationFailed(const QString &reason)
+void SftpFileSystemModel::handleSftpChannelError(const QString &reason)
 {
     emit connectionError(reason);
     beginResetModel();
@@ -354,12 +361,14 @@ void SftpFileSystemModel::handleFileInfo(SftpJobId jobId, const QList<SftpFileIn
     emit layoutChanged(); // Should be endInsertRows(), see above.
 }
 
-void SftpFileSystemModel::handleSftpJobFinished(SftpJobId jobId, const QString &errorMessage)
+void SftpFileSystemModel::handleSftpJobFinished(SftpJobId jobId, const SftpError error, const QString &errorMessage)
 {
+    Q_UNUSED(error);
+
     if (jobId == d->statJobId) {
         d->statJobId = SftpInvalidJob;
         if (!errorMessage.isEmpty())
-            emit sftpOperationFailed(tr("Error getting 'stat' info about '%1': %2")
+            emit sftpOperationFailed(tr("Error getting \"stat\" info about \"%1\": %2")
                 .arg(rootDirectory(), errorMessage));
         return;
     }
@@ -369,7 +378,7 @@ void SftpFileSystemModel::handleSftpJobFinished(SftpJobId jobId, const QString &
         QSSH_ASSERT(it.value()->lsState == SftpDirNode::LsRunning);
         it.value()->lsState = SftpDirNode::LsFinished;
         if (!errorMessage.isEmpty())
-            emit sftpOperationFailed(tr("Error listing contents of directory '%1': %2")
+            emit sftpOperationFailed(tr("Error listing contents of directory \"%1\": %2")
                 .arg(it.value()->path, errorMessage));
         d->lsOps.erase(it);
         return;

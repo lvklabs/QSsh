@@ -30,6 +30,7 @@
 
 #include "sftpoutgoingpacket_p.h"
 
+#include "sshlogging_p.h"
 #include "sshpacket_p.h"
 
 #include <QtEndian>
@@ -155,7 +156,7 @@ SftpOutgoingPacket &SftpOutgoingPacket::generateCreateLink(const QString &filePa
 SftpOutgoingPacket &SftpOutgoingPacket::generateOpenFile(const QString &path,
     OpenType openType, SftpOverwriteMode mode, const QList<quint32> &attributes, quint32 requestId)
 {
-    quint32 pFlags;
+    quint32 pFlags = 0;
     switch (openType) {
     case Read:
         pFlags = SSH_FXF_READ;
@@ -183,10 +184,7 @@ SftpOutgoingPacket &SftpOutgoingPacket::init(SftpPacketType type,
     m_data[TypeOffset] = type;
     if (type != SSH_FXP_INIT) {
         appendInt(requestId);
-#ifdef CREATOR_SSH_DEBUG
-        qDebug("Generating SFTP packet of type %d with request id %u", type,
-            requestId);
-#endif
+        qCDebug(sshLog, "Generating SFTP packet of type %d with request id %u", type, requestId);
     }
     return *this;
 }

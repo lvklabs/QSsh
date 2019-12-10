@@ -48,6 +48,19 @@ class SshRemoteProcessPrivate;
 class SshSendFacility;
 } // namespace Internal
 
+/*!
+    \class QSsh::SshRemoteProcess
+
+    \brief This class implements an SSH channel for running a remote process.
+
+    Objects are created via SshConnection::createRemoteProcess.
+    The process is started via the start() member function.
+    If the process needs a pseudo terminal, you can request one
+    via requestTerminal() before calling start().
+    Note that this class does not support QIODevice's waitFor*() functions, i.e. it has
+    no synchronous mode.
+ */
+
 // TODO: ProcessChannel
 class QSSH_EXPORT SshRemoteProcess : public QIODevice
 {
@@ -81,8 +94,10 @@ public:
      * usually configured to ignore such requests for security reasons.
      */
     void addToEnvironment(const QByteArray &var, const QByteArray &value);
+    void clearEnvironment();
 
     void requestTerminal(const SshPseudoTerminal &terminal);
+    void requestX11Forwarding(const QString &displayName);
     void start();
 
     bool isRunning() const;

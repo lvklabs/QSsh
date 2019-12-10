@@ -44,6 +44,7 @@ class SshRemoteProcess;
 
 namespace Internal {
 class SshSendFacility;
+class X11DisplayInfo;
 
 class SshRemoteProcessPrivate : public AbstractSshChannel
 {
@@ -54,12 +55,8 @@ public:
         NotYetStarted, ExecRequested, StartFailed, Running, Exited
     };
 
-    virtual void handleChannelSuccess();
-    virtual void handleChannelFailure();
-
-    virtual void closeHook();
-
-    QByteArray &data();
+    void failToStart(const QString &reason);
+    void startProcess(const X11DisplayInfo &displayInfo);
 
 signals:
     void started();
@@ -67,12 +64,16 @@ signals:
     void readyReadStandardOutput();
     void readyReadStandardError();
     void closed(int exitStatus);
+    void x11ForwardingRequested(const QString &display);
 
 private:
     SshRemoteProcessPrivate(const QByteArray &command, quint32 channelId,
         SshSendFacility &sendFacility, SshRemoteProcess *proc);
     SshRemoteProcessPrivate(quint32 channelId, SshSendFacility &sendFacility,
         SshRemoteProcess *proc);
+
+    virtual void handleChannelSuccess();
+    virtual void handleChannelFailure();
 
     virtual void handleOpenSuccessInternal();
     virtual void handleOpenFailureInternal(const QString &reason);
@@ -82,8 +83,11 @@ private:
     virtual void handleExitStatus(const SshChannelExitStatus &exitStatus);
     virtual void handleExitSignal(const SshChannelExitSignal &signal);
 
+    virtual void closeHook();
+
     void init();
     void setProcState(ProcessState newState);
+    QByteArray &data();
 
     QProcess::ProcessChannel m_readChannel;
 
@@ -99,6 +103,8 @@ private:
     QList<EnvVar> m_env;
     bool m_useTerminal;
     SshPseudoTerminal m_terminal;
+
+    QString m_x11DisplayName;
 
     QByteArray m_stdout;
     QByteArray m_stderr;

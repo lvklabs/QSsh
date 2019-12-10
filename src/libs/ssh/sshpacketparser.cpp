@@ -31,6 +31,7 @@
 #include "sshpacketparser_p.h"
 
 #include <cctype>
+#include <QtEndian>
 
 namespace QSsh {
 namespace Internal {
@@ -68,10 +69,7 @@ quint32 SshPacketParser::asUint32(const QByteArray &data, quint32 offset)
 {
     if (size(data) < offset + 4)
         throw SshPacketParseException();
-    const quint32 value = ((data.at(offset) & 0xff) << 24)
-        + ((data.at(offset + 1) & 0xff) << 16)
-        + ((data.at(offset + 2) & 0xff) << 8) + (data.at(offset + 3) & 0xff);
-    return value;
+    return qFromBigEndian<quint32>(data.constData() + offset);
 }
 
 quint32 SshPacketParser::asUint32(const QByteArray &data, quint32 *offset)
@@ -85,15 +83,7 @@ quint64 SshPacketParser::asUint64(const QByteArray &data, quint32 offset)
 {
     if (size(data) < offset + 8)
         throw SshPacketParseException();
-    const quint64 value = (static_cast<quint64>(data.at(offset) & 0xff) << 56)
-        + (static_cast<quint64>(data.at(offset + 1) & 0xff) << 48)
-        + (static_cast<quint64>(data.at(offset + 2) & 0xff) << 40)
-        + (static_cast<quint64>(data.at(offset + 3) & 0xff) << 32)
-        + ((data.at(offset + 4) & 0xff) << 24)
-        + ((data.at(offset + 5) & 0xff) << 16)
-        + ((data.at(offset + 6) & 0xff) << 8)
-        + (data.at(offset + 7) & 0xff);
-    return value;
+    return qFromBigEndian<quint64>(data.constData() + offset);
 }
 
 quint64 SshPacketParser::asUint64(const QByteArray &data, quint32 *offset)
@@ -101,6 +91,11 @@ quint64 SshPacketParser::asUint64(const QByteArray &data, quint32 *offset)
     const quint64 val = asUint64(data, *offset);
     *offset += 8;
     return val;
+}
+
+QByteArray SshPacketParser::asString(const QByteArray &data, quint32 offset)
+{
+    return asString(data, &offset);
 }
 
 QByteArray SshPacketParser::asString(const QByteArray &data, quint32 *offset)

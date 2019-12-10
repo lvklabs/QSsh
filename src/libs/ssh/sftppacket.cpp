@@ -35,8 +35,11 @@
 namespace QSsh {
 namespace Internal {
 
-const quint32 AbstractSftpPacket::MaxDataSize = 32000;
-const quint32 AbstractSftpPacket::MaxPacketSize = 34000;
+// There's no "standard" or negotiation between server and client for this, so
+// just use the same as openssh's sftp implementation
+const quint32 AbstractSftpPacket::MaxDataSize = 32768;
+const quint32 AbstractSftpPacket::MaxPacketSize = 256 * 1024;
+
 const int AbstractSftpPacket::TypeOffset = 4;
 const int AbstractSftpPacket::RequestIdOffset = TypeOffset + 1;
 const int AbstractSftpPacket::PayloadOffset = RequestIdOffset + 4;

@@ -30,8 +30,11 @@
 
 #include "sshoutgoingpacket_p.h"
 
+#include "sshagent_p.h"
 #include "sshcapabilities_p.h"
 #include "sshcryptofacility_p.h"
+#include "sshlogging_p.h"
+#include "sshpacketparser_p.h"
 
 #include <QtEndian>
 
@@ -89,6 +92,11 @@ void SshOutgoingPacket::generateKeyDhInitPacket(const Botan::BigInt &e)
     init(SSH_MSG_KEXDH_INIT).appendMpInt(e).finalize();
 }
 
+void SshOutgoingPacket::generateKeyEcdhInitPacket(const QByteArray &clientQ)
+{
+    init(SSH_MSG_KEX_ECDH_INIT).appendString(clientQ).finalize();
+}
+
 void SshOutgoingPacket::generateNewKeysPacket()
 {
     init(SSH_MSG_NEWKEYS).finalize();
@@ -104,23 +112,70 @@ void SshOutgoingPacket::generateServiceRequest(const QByteArray &service)
     init(SSH_MSG_SERVICE_REQUEST).appendString(service).finalize();
 }
 
-void SshOutgoingPacket::generateUserAuthByPwdRequestPacket(const QByteArray &user,
+void SshOutgoingPacket::generateUserAuthByPasswordRequestPacket(const QByteArray &user,
     const QByteArray &service, const QByteArray &pwd)
 {
-    init(SSH_MSG_USERAUTH_REQUEST).appendString(user).appendString(service)
-        .appendString("password").appendBool(false).appendString(pwd)
-        .finalize();
+    init(SSH_MSG_USERAUTH_REQUEST).appendString(user).appendString(service);
+    if (pwd.isEmpty())
+        appendString("none"); // RFC 4252, 5.2
+    else
+        appendString("password").appendBool(false).appendString(pwd);
+    finalize();
 }
 
-void SshOutgoingPacket::generateUserAuthByKeyRequestPacket(const QByteArray &user,
-    const QByteArray &service)
+void SshOutgoingPacket::generateUserAuthByPublicKeyRequestPacket(const QByteArray &user,
+    const QByteArray &service, const QByteArray &key, const QByteArray &signature)
 {
     init(SSH_MSG_USERAUTH_REQUEST).appendString(user).appendString(service)
-        .appendString("publickey").appendBool(true)
-        .appendString(m_encrypter.authenticationAlgorithmName())
-        .appendString(m_encrypter.authenticationPublicKey());
-    const QByteArray &dataToSign = m_data.mid(PayloadOffset);
-    appendString(m_encrypter.authenticationKeySignature(dataToSign));
+        .appendString("publickey").appendBool(true);
+    if (!key.isEmpty()) {
+        appendString(SshPacketParser::asString(key, quint32(0)));
+        appendString(key);
+        appendString(signature);
+    } else {
+        appendString(m_encrypter.authenticationAlgorithmName());
+        appendString(m_encrypter.authenticationPublicKey());
+        const QByteArray &dataToSign = m_data.mid(PayloadOffset);
+        appendString(m_encrypter.authenticationKeySignature(dataToSign));
+    }
+    finalize();
+}
+
+void SshOutgoingPacket::generateQueryPublicKeyPacket(const QByteArray &user,
+        const QByteArray &service, const QByteArray &publicKey)
+{
+    // Name extraction cannot fail, we already verified this when receiving the key
+    // from the agent.
+    const QByteArray algoName = SshPacketParser::asString(publicKey, quint32(0));
+    SshOutgoingPacket packetToSign(m_encrypter, m_seqNr);
+    packetToSign.init(SSH_MSG_USERAUTH_REQUEST).appendString(user).appendString(service)
+            .appendString("publickey").appendBool(true).appendString(algoName)
+            .appendString(publicKey);
+    const QByteArray &dataToSign
+            = encodeString(m_encrypter.sessionId()) + packetToSign.m_data.mid(PayloadOffset);
+    SshAgent::storeDataToSign(publicKey, dataToSign, qHash(m_encrypter.sessionId()));
+    init(SSH_MSG_USERAUTH_REQUEST).appendString(user).appendString(service)
+            .appendString("publickey").appendBool(false).appendString(algoName)
+            .appendString(publicKey).finalize();
+}
+
+void SshOutgoingPacket::generateUserAuthByKeyboardInteractiveRequestPacket(const QByteArray &user,
+                                                                           const QByteArray &service)
+{
+    // RFC 4256, 3.1
+    init(SSH_MSG_USERAUTH_REQUEST).appendString(user).appendString(service)
+            .appendString("keyboard-interactive")
+            .appendString(QByteArray()) // Language tag. Deprecated and should be empty
+            .appendString(QByteArray()) // Submethods.
+            .finalize();
+}
+
+void SshOutgoingPacket::generateUserAuthInfoResponsePacket(const QStringList &responses)
+{
+    // RFC 4256, 3.4
+    init(SSH_MSG_USERAUTH_INFO_RESPONSE).appendInt(responses.count());
+    foreach (const QString &response, responses)
+        appendString(response.toUtf8());
     finalize();
 }
 
@@ -143,7 +198,29 @@ void SshOutgoingPacket::generateSessionPacket(quint32 channelId,
     quint32 windowSize, quint32 maxPacketSize)
 {
     init(SSH_MSG_CHANNEL_OPEN).appendString("session").appendInt(channelId)
-        .appendInt(windowSize).appendInt(maxPacketSize).finalize();
+            .appendInt(windowSize).appendInt(maxPacketSize).finalize();
+}
+
+void SshOutgoingPacket::generateDirectTcpIpPacket(quint32 channelId, quint32 windowSize,
+        quint32 maxPacketSize, const QByteArray &remoteHost, quint32 remotePort,
+        const QByteArray &localIpAddress, quint32 localPort)
+{
+    init(SSH_MSG_CHANNEL_OPEN).appendString("direct-tcpip").appendInt(channelId)
+            .appendInt(windowSize).appendInt(maxPacketSize).appendString(remoteHost)
+            .appendInt(remotePort).appendString(localIpAddress).appendInt(localPort).finalize();
+}
+
+void SshOutgoingPacket::generateTcpIpForwardPacket(const QByteArray &bindAddress, quint32 bindPort)
+{
+    init(SSH_MSG_GLOBAL_REQUEST).appendString("tcpip-forward").appendBool(true)
+            .appendString(bindAddress).appendInt(bindPort).finalize();
+}
+
+void SshOutgoingPacket::generateCancelTcpIpForwardPacket(const QByteArray &bindAddress,
+                                                         quint32 bindPort)
+{
+    init(SSH_MSG_GLOBAL_REQUEST).appendString("cancel-tcpip-forward").appendBool(true)
+            .appendString(bindAddress).appendInt(bindPort).finalize();
 }
 
 void SshOutgoingPacket::generateEnvPacket(quint32 remoteChannel,
@@ -151,6 +228,14 @@ void SshOutgoingPacket::generateEnvPacket(quint32 remoteChannel,
 {
     init(SSH_MSG_CHANNEL_REQUEST).appendInt(remoteChannel).appendString("env")
         .appendBool(false).appendString(var).appendString(value).finalize();
+}
+
+void SshOutgoingPacket::generateX11ForwardingPacket(quint32 remoteChannel,
+        const QByteArray &protocol, const QByteArray &cookie, quint32 screenNumber)
+{
+    init(SSH_MSG_CHANNEL_REQUEST).appendInt(remoteChannel).appendString("x11-req")
+            .appendBool(false).appendBool(false).appendString(protocol)
+            .appendString(cookie).appendInt(screenNumber).finalize();
 }
 
 void SshOutgoingPacket::generatePtyRequestPacket(quint32 remoteChannel,
@@ -222,6 +307,22 @@ void SshOutgoingPacket::generateChannelClosePacket(quint32 remoteChannel)
     init(SSH_MSG_CHANNEL_CLOSE).appendInt(remoteChannel).finalize();
 }
 
+void SshOutgoingPacket::generateChannelOpenConfirmationPacket(quint32 remoteChannel,
+                                                              quint32 localChannel,
+                                                              quint32 localWindowSize,
+                                                              quint32 maxPacketSize)
+{
+    init(SSH_MSG_CHANNEL_OPEN_CONFIRMATION).appendInt(remoteChannel).appendInt(localChannel)
+            .appendInt(localWindowSize).appendInt(maxPacketSize).finalize();
+}
+
+void SshOutgoingPacket::generateChannelOpenFailurePacket(quint32 remoteChannel, quint32 reason,
+                                                         const QByteArray &reasonString)
+{
+    init(SSH_MSG_CHANNEL_OPEN_FAILURE).appendInt(remoteChannel).appendInt(reason)
+            .appendString(reasonString).appendString(QByteArray()).finalize();
+}
+
 void SshOutgoingPacket::generateDisconnectPacket(SshErrorCode reason,
     const QByteArray &reasonString)
 {
@@ -291,13 +392,9 @@ void SshOutgoingPacket::finalize()
     setPadding();
     setLengthField(m_data);
     m_length = m_data.size() - 4;
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("Encrypting packet of type %u", m_data.at(TypeOffset));
-#endif
+    qCDebug(sshLog, "Encrypting packet of type %u", m_data.at(TypeOffset));
     encrypt();
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("Sending packet of size %d", rawData().count());
-#endif
+    qCDebug(sshLog, "Sending packet of size %d", rawData().count());
     Q_ASSERT(isComplete());
 }
 

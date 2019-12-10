@@ -33,32 +33,30 @@
 
 #include "ssh_global.h"
 
-#include <QScopedPointer>
-
 namespace QSsh {
+
 class SshConnection;
 class SshConnectionParameters;
-namespace Internal { class SshConnectionManagerPrivate; }
 
-class QSSH_EXPORT SshConnectionManager
-{
-    friend class Internal::SshConnectionManagerPrivate;
-public:
-    static SshConnectionManager &instance();
+/*!
+ * \brief Creates a new connection or returns an existing one if there already is one with identical sshParams
+ * \param sshParams Parameters used during connection
+ * \return A connection
+ */
+QSSH_EXPORT SshConnection *acquireConnection(const SshConnectionParameters &sshParams);
 
-    SshConnection *acquireConnection(const SshConnectionParameters &sshParams);
-    void releaseConnection(SshConnection *connection);
-    // Make sure the next acquireConnection with the given parameters will return a new connection.
-    void forceNewConnection(const SshConnectionParameters &sshParams);
+/*!
+ * \brief Call this when you are done with a connection, might be disconnected and destroyed if there are no others who have called acquireConnection()
+ * \param connection The connection to be released
+ */
+QSSH_EXPORT void releaseConnection(SshConnection *connection);
 
-private:
-    explicit SshConnectionManager();
-    virtual ~SshConnectionManager();
-    SshConnectionManager(const SshConnectionManager &);
-    SshConnectionManager &operator=(const SshConnectionManager &);
-
-    const QScopedPointer<Internal::SshConnectionManagerPrivate> d;
-};
+/*!
+ * \brief Creates a new connection, unlike acquireConnection() it will not reuse an existing one.
+ * \param sshParams Parameters used during connection
+ * Make sure the next acquireConnection with the given parameters will return a new connection.
+ */
+QSSH_EXPORT void forceNewConnection(const SshConnectionParameters &sshParams);
 
 } // namespace QSsh
 

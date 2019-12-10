@@ -1,16 +1,32 @@
 TEMPLATE = lib
 TARGET = QSsh
 QT += network
-DEFINES += QSSH_LIBRARY
-
-LIBS += -lbotan-2
+DEFINES += QTCSSH_LIBRARY
 
 #Enable debug log
 #DEFINES += CREATOR_SSH_DEBUG
 
-INCLUDEPATH += /usr/include/botan-2/
+INCLUDEPATH += $$QSSH_PREFIX/include/botan-2/
 
-include(../../qtcreatorlibrary.pri)
+include(../../../qssh.pri)
+
+win32 {
+    DLLDESTDIR = $$[QT_INSTALL_LIBS]
+}
+
+!win32-msvc* {
+    QMAKE_CXXFLAGS += -Wextra -pedantic
+}
+
+DESTDIR = $$IDE_LIBRARY_PATH
+
+TARGET = $$qtLibraryName($$TARGET)
+
+CONFIG += shared dll warn_on
+
+DEFINES += QT_DEPRECATED_WARNINGS
+
+contains(QT_CONFIG, reduce_exports):CONFIG += hide_symbols
 
 SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshremoteprocess.cpp \
@@ -34,21 +50,46 @@ SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshremoteprocessrunner.cpp \
     $$PWD/sshconnectionmanager.cpp \
     $$PWD/sshkeypasswordretriever.cpp \
-    $$PWD/sftpfilesystemmodel.cpp
+    $$PWD/sftpfilesystemmodel.cpp \
+    $$PWD/sshinit.cpp \
+    $$PWD/sshdirecttcpiptunnel.cpp \
+    $$PWD/sshhostkeydatabase.cpp \
+    $$PWD/sshlogging.cpp \
+    $$PWD/sshtcpipforwardserver.cpp \
+    $$PWD/sshtcpiptunnel.cpp \
+    $$PWD/sshforwardedtcpiptunnel.cpp \
+    $$PWD/sshagent.cpp \
+    $$PWD/sshx11channel.cpp \
+    $$PWD/sshx11inforetriever.cpp \
+    $$PWD/opensshkeyfilereader.cpp \
 
-HEADERS = $$PWD/sshsendfacility_p.h \
+PUBLIC_HEADERS = \
+    $$PWD/sftpdefs.h \
+    $$PWD/ssherrors.h \
     $$PWD/sshremoteprocess.h \
+    $$PWD/sftpchannel.h \
+    $$PWD/sshkeygenerator.h \
+    $$PWD/sshremoteprocessrunner.h \
+    $$PWD/sshconnectionmanager.h \
+    $$PWD/sshpseudoterminal.h \
+    $$PWD/sftpfilesystemmodel.h \
+    $$PWD/sshdirecttcpiptunnel.h \
+    $$PWD/sshtcpipforwardserver.h \
+    $$PWD/sshhostkeydatabase.h \
+    $$PWD/sshforwardedtcpiptunnel.h \
+    $$PWD/ssh_global.h \
+    $$PWD/sshconnection.h \
+
+HEADERS = $$PUBLIC_HEADERS \
+    $$PWD/sshsendfacility_p.h \
     $$PWD/sshremoteprocess_p.h \
     $$PWD/sshpacketparser_p.h \
     $$PWD/sshpacket_p.h \
     $$PWD/sshoutgoingpacket_p.h \
-    $$PWD/sshkeygenerator.h \
     $$PWD/sshkeyexchange_p.h \
     $$PWD/sshincomingpacket_p.h \
     $$PWD/sshexception_p.h \
-    $$PWD/ssherrors.h \
     $$PWD/sshcryptofacility_p.h \
-    $$PWD/sshconnection.h \
     $$PWD/sshconnection_p.h \
     $$PWD/sshchannelmanager_p.h \
     $$PWD/sshchannel_p.h \
@@ -58,14 +99,26 @@ HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sftpoutgoingpacket_p.h \
     $$PWD/sftpoperation_p.h \
     $$PWD/sftpincomingpacket_p.h \
-    $$PWD/sftpdefs.h \
-    $$PWD/sftpchannel.h \
     $$PWD/sftpchannel_p.h \
-    $$PWD/sshremoteprocessrunner.h \
-    $$PWD/sshconnectionmanager.h \
-    $$PWD/sshpseudoterminal.h \
     $$PWD/sshkeypasswordretriever_p.h \
-    $$PWD/sftpfilesystemmodel.h \
-    $$PWD/ssh_global.h
+    $$PWD/sshdirecttcpiptunnel_p.h \
+    $$PWD/sshinit_p.h \
+    $$PWD/sshlogging_p.h \
+    $$PWD/sshtcpipforwardserver_p.h \
+    $$PWD/sshtcpiptunnel_p.h \
+    $$PWD/sshforwardedtcpiptunnel_p.h \
+    $$PWD/sshagent_p.h \
+    $$PWD/sshx11channel_p.h \
+    $$PWD/sshx11displayinfo_p.h \
+    $$PWD/sshx11inforetriever_p.h \
+    $$PWD/opensshkeyfilereader_p.h \
+
+RESOURCES += $$PWD/ssh.qrc
 
 
+headers.files = $$PUBLIC_HEADERS
+headers.path = $$[QT_INSTALL_PREFIX]/include/QSsh
+
+target.path = $$[QT_INSTALL_LIBS]
+
+INSTALLS += target headers

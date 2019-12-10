@@ -33,13 +33,6 @@
 #include "sshconnectionmanager.h"
 #include "sshpseudoterminal.h"
 
-
-/*!
-    \class QSsh::SshRemoteProcessRunner
-
-    \brief Convenience class for running a remote process over an SSH connection.
-*/
-
 namespace QSsh {
 namespace Internal {
 namespace {
@@ -111,14 +104,15 @@ void SshRemoteProcessRunner::runInternal(const QByteArray &command,
     d->m_exitSignal = SshRemoteProcess::NoSignal;
     d->m_exitCode = -1;
     d->m_command = command;
-    d->m_connection = SshConnectionManager::instance().acquireConnection(sshParams);
-    connect(d->m_connection, SIGNAL(error(QSsh::SshError)),
-        SLOT(handleConnectionError(QSsh::SshError)));
-    connect(d->m_connection, SIGNAL(disconnected()), SLOT(handleDisconnected()));
+    d->m_connection = QSsh::acquireConnection(sshParams);
+    connect(d->m_connection, &SshConnection::error,
+            this, &SshRemoteProcessRunner::handleConnectionError);
+    connect(d->m_connection, &SshConnection::disconnected,
+            this, &SshRemoteProcessRunner::handleDisconnected);
     if (d->m_connection->state() == SshConnection::Connected) {
         handleConnected();
     } else {
-        connect(d->m_connection, SIGNAL(connected()), SLOT(handleConnected()));
+        connect(d->m_connection, &SshConnection::connected, this, &SshRemoteProcessRunner::handleConnected);
         if (d->m_connection->state() == SshConnection::Unconnected)
             d->m_connection->connectToHost();
     }
@@ -130,10 +124,14 @@ void SshRemoteProcessRunner::handleConnected()
     setState(Connected);
 
     d->m_process = d->m_connection->createRemoteProcess(d->m_command);
-    connect(d->m_process.data(), SIGNAL(started()), SLOT(handleProcessStarted()));
-    connect(d->m_process.data(), SIGNAL(closed(int)), SLOT(handleProcessFinished(int)));
-    connect(d->m_process.data(), SIGNAL(readyReadStandardOutput()), SLOT(handleStdout()));
-    connect(d->m_process.data(), SIGNAL(readyReadStandardError()), SLOT(handleStderr()));
+    connect(d->m_process.data(), &SshRemoteProcess::started,
+            this, &SshRemoteProcessRunner::handleProcessStarted);
+    connect(d->m_process.data(), &SshRemoteProcess::closed,
+            this, &SshRemoteProcessRunner::handleProcessFinished);
+    connect(d->m_process.data(), &SshRemoteProcess::readyReadStandardOutput,
+            this, &SshRemoteProcessRunner::handleStdout);
+    connect(d->m_process.data(), &SshRemoteProcess::readyReadStandardError,
+            this, &SshRemoteProcessRunner::handleStderr);
     if (d->m_runInTerminal)
         d->m_process->requestTerminal(d->m_terminal);
     d->m_process->start();
@@ -211,7 +209,7 @@ void SshRemoteProcessRunner::setState(int newState)
         }
         if (d->m_connection) {
             disconnect(d->m_connection, 0, this, 0);
-            SshConnectionManager::instance().releaseConnection(d->m_connection);
+            QSsh::releaseConnection(d->m_connection);
             d->m_connection = 0;
         }
     }

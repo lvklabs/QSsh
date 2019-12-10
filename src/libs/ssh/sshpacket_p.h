@@ -53,7 +53,9 @@ enum SshPacketType {
     SSH_MSG_KEXINIT = 20,
     SSH_MSG_NEWKEYS = 21,
     SSH_MSG_KEXDH_INIT = 30,
+    SSH_MSG_KEX_ECDH_INIT = 30,
     SSH_MSG_KEXDH_REPLY = 31,
+    SSH_MSG_KEX_ECDH_REPLY = 31,
 
     SSH_MSG_USERAUTH_REQUEST = 50,
     SSH_MSG_USERAUTH_FAILURE = 51,
@@ -61,6 +63,8 @@ enum SshPacketType {
     SSH_MSG_USERAUTH_BANNER = 53,
     SSH_MSG_USERAUTH_PK_OK = 60,
     SSH_MSG_USERAUTH_PASSWD_CHANGEREQ = 60,
+    SSH_MSG_USERAUTH_INFO_REQUEST = 60,
+    SSH_MSG_USERAUTH_INFO_RESPONSE = 61,
 
     SSH_MSG_GLOBAL_REQUEST = 80,
     SSH_MSG_REQUEST_SUCCESS = 81,
@@ -84,6 +88,13 @@ enum SshPacketType {
     // message type as an extension. Switch to a different value in that case
     // (between 128 and 191).
     SSH_MSG_INVALID = 128
+};
+
+enum SshOpenFailureType {
+    SSH_OPEN_ADMINISTRATIVELY_PROHIBITED = 1,
+    SSH_OPEN_CONNECT_FAILED = 2,
+    SSH_OPEN_UNKNOWN_CHANNEL_TYPE = 3,
+    SSH_OPEN_RESOURCE_SHORTAGE = 4
 };
 
 enum SshExtendedDataType { SSH_EXTENDED_DATA_STDERR = 1 };

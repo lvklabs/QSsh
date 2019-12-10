@@ -36,8 +36,7 @@
 #include "sshcryptofacility_p.h"
 #include "sshpacketparser_p.h"
 
-#include <QList>
-#include <QString>
+#include <QStringList>
 
 namespace QSsh {
 namespace Internal {
@@ -63,8 +62,10 @@ struct SshKeyExchangeInit
 struct SshKeyExchangeReply
 {
     QByteArray k_s;
-    QList<Botan::BigInt> parameters; // DSS: p, q, g, y. RSA: e, n.
-    Botan::BigInt f;
+    QList<Botan::BigInt> hostKeyParameters; // DSS: p, q, g, y. RSA: e, n.
+    QByteArray q; // For ECDSA host keys only.
+    Botan::BigInt f; // For DH only.
+    QByteArray q_s; // For ECDH only.
     QByteArray signatureBlob;
 };
 
@@ -81,6 +82,21 @@ struct SshUserAuthBanner
     QByteArray language;
 };
 
+struct SshUserAuthPkOkPacket
+{
+    QByteArray algoName;
+    QByteArray keyBlob;
+};
+
+struct SshUserAuthInfoRequestPacket
+{
+    QString name;
+    QString instruction;
+    QByteArray languageTag;
+    QStringList prompts;
+    QList<bool> echos;
+};
+
 struct SshDebug
 {
     bool display;
@@ -91,6 +107,41 @@ struct SshDebug
 struct SshUnimplemented
 {
     quint32 invalidMsgSeqNr;
+};
+
+struct SshRequestSuccess
+{
+    quint32 bindPort;
+};
+
+struct SshChannelOpenCommon
+{
+    quint32 remoteChannel;
+    quint32 remoteWindowSize;
+    quint32 remoteMaxPacketSize;
+};
+
+struct SshChannelOpenGeneric
+{
+    QByteArray channelType;
+    SshChannelOpenCommon commonData;
+    QByteArray typeSpecificData;
+};
+
+struct SshChannelOpenForwardedTcpIp
+{
+    SshChannelOpenCommon common;
+    QByteArray remoteAddress;
+    quint32 remotePort;
+    QByteArray originatorAddress;
+    quint32 originatorPort;
+};
+
+struct SshChannelOpenX11
+{
+    SshChannelOpenCommon common;
+    QByteArray originatorAddress;
+    quint32 originatorPort;
 };
 
 struct SshChannelOpenFailure
@@ -143,7 +194,6 @@ struct SshChannelExitSignal
     QByteArray language;
 };
 
-
 class SshIncomingPacket : public AbstractSshPacket
 {
 public:
@@ -154,12 +204,20 @@ public:
     void reset();
 
     SshKeyExchangeInit extractKeyExchangeInitData() const;
-    SshKeyExchangeReply extractKeyExchangeReply(const QByteArray &pubKeyAlgo) const;
+    SshKeyExchangeReply extractKeyExchangeReply(const QByteArray &kexAlgo,
+                                                const QByteArray &hostKeyAlgo) const;
     SshDisconnect extractDisconnect() const;
     SshUserAuthBanner extractUserAuthBanner() const;
+    SshUserAuthInfoRequestPacket extractUserAuthInfoRequest() const;
+    SshUserAuthPkOkPacket extractUserAuthPkOk() const;
     SshDebug extractDebug() const;
+    SshRequestSuccess extractRequestSuccess() const;
     SshUnimplemented extractUnimplemented() const;
 
+    SshChannelOpenGeneric extractChannelOpen() const;
+    static SshChannelOpenForwardedTcpIp extractChannelOpenForwardedTcpIp(
+            const SshChannelOpenGeneric &genericData);
+    static SshChannelOpenX11 extractChannelOpenX11(const SshChannelOpenGeneric &genericData);
     SshChannelOpenFailure extractChannelOpenFailure() const;
     SshChannelOpenConfirmation extractChannelOpenConfirmation() const;
     SshChannelWindowAdjust extractWindowAdjust() const;
@@ -174,6 +232,7 @@ public:
 
     static const QByteArray ExitStatusType;
     static const QByteArray ExitSignalType;
+    static const QByteArray ForwardedTcpIpType;
 
 private:
     virtual quint32 cipherBlockSize() const;

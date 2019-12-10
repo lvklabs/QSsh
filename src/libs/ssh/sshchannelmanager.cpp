@@ -32,10 +32,19 @@
 
 #include "sftpchannel.h"
 #include "sftpchannel_p.h"
+#include "sshdirecttcpiptunnel.h"
+#include "sshdirecttcpiptunnel_p.h"
+#include "sshforwardedtcpiptunnel.h"
+#include "sshforwardedtcpiptunnel_p.h"
 #include "sshincomingpacket_p.h"
+#include "sshlogging_p.h"
 #include "sshremoteprocess.h"
 #include "sshremoteprocess_p.h"
 #include "sshsendfacility_p.h"
+#include "sshtcpipforwardserver.h"
+#include "sshtcpipforwardserver_p.h"
+#include "sshx11channel_p.h"
+#include "sshx11inforetriever_p.h"
 
 #include <QList>
 
@@ -54,10 +63,23 @@ void SshChannelManager::handleChannelRequest(const SshIncomingPacket &packet)
         ->handleChannelRequest(packet);
 }
 
-void SshChannelManager::handleChannelOpen(const SshIncomingPacket &)
+void SshChannelManager::handleChannelOpen(const SshIncomingPacket &packet)
 {
-    throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
-        "Server tried to open channel on client.");
+    const SshChannelOpenGeneric channelOpen = packet.extractChannelOpen();
+    if (channelOpen.channelType == SshIncomingPacket::ForwardedTcpIpType) {
+        handleChannelOpenForwardedTcpIp(channelOpen);
+        return;
+    }
+    if (channelOpen.channelType == "x11") {
+        handleChannelOpenX11(channelOpen);
+        return;
+    }
+    try {
+        m_sendFacility.sendChannelOpenFailurePacket(channelOpen.commonData.remoteChannel,
+                                                    SSH_OPEN_UNKNOWN_CHANNEL_TYPE, QByteArray());
+    }  catch (const std::exception &e) {
+        qCWarning(sshLog, "Botan error: %s", e.what());
+    }
 }
 
 void SshChannelManager::handleChannelOpenFailure(const SshIncomingPacket &packet)
@@ -66,7 +88,7 @@ void SshChannelManager::handleChannelOpenFailure(const SshIncomingPacket &packet
    ChannelIterator it = lookupChannelAsIterator(failure.localChannel);
    try {
        it.value()->handleOpenFailure(failure.reasonString);
-   } catch (SshServerException &e) {
+   } catch (const SshServerException &e) {
        removeChannel(it);
        throw e;
    }
@@ -128,6 +150,39 @@ void SshChannelManager::handleChannelClose(const SshIncomingPacket &packet)
     }
 }
 
+void SshChannelManager::handleRequestSuccess(const SshIncomingPacket &packet)
+{
+    if (m_waitingForwardServers.isEmpty()) {
+        throw SshServerException(SSH_DISCONNECT_PROTOCOL_ERROR,
+                                 "Unexpected request success packet.",
+                                 tr("Unexpected request success packet."));
+    }
+    SshTcpIpForwardServer::Ptr server = m_waitingForwardServers.takeFirst();
+    if (server->state() == SshTcpIpForwardServer::Closing) {
+        server->setClosed();
+    } else if (server->state() == SshTcpIpForwardServer::Initializing) {
+        quint16 port = server->port();
+        if (port == 0)
+            port = packet.extractRequestSuccess().bindPort;
+        server->setListening(port);
+        m_listeningForwardServers.append(server);
+    } else {
+        QSSH_ASSERT(false);
+    }
+}
+
+void SshChannelManager::handleRequestFailure(const SshIncomingPacket &packet)
+{
+    Q_UNUSED(packet);
+    if (m_waitingForwardServers.isEmpty()) {
+        throw SshServerException(SSH_DISCONNECT_PROTOCOL_ERROR,
+                                 "Unexpected request failure packet.",
+                                 tr("Unexpected request failure packet."));
+    }
+    SshTcpIpForwardServer::Ptr tunnel = m_waitingForwardServers.takeFirst();
+    tunnel->setClosed();
+}
+
 SshChannelManager::ChannelIterator SshChannelManager::lookupChannelAsIterator(quint32 channelId,
     bool allowNotFound)
 {
@@ -151,6 +206,43 @@ QSsh::SshRemoteProcess::Ptr SshChannelManager::createRemoteProcess(const QByteAr
 {
     SshRemoteProcess::Ptr proc(new SshRemoteProcess(command, m_nextLocalChannelId++, m_sendFacility));
     insertChannel(proc->d, proc);
+    connect(proc->d, &SshRemoteProcessPrivate::destroyed, this, [this] {
+        m_x11ForwardingRequests.removeOne(static_cast<SshRemoteProcessPrivate *>(sender()));
+    });
+    connect(proc->d, &SshRemoteProcessPrivate::x11ForwardingRequested, this,
+            [this, proc = proc->d](const QString &displayName) {
+        if (!x11DisplayName().isEmpty()) {
+            if (x11DisplayName() != displayName) {
+                proc->failToStart(tr("Cannot forward to display %1 on SSH connection that is "
+                                     "already forwarding to display %2.")
+                                  .arg(displayName, x11DisplayName()));
+                return;
+            }
+            if (!m_x11DisplayInfo.cookie.isEmpty())
+                proc->startProcess(m_x11DisplayInfo);
+            else
+                m_x11ForwardingRequests << proc;
+            return;
+        }
+        m_x11DisplayInfo.displayName = displayName;
+        m_x11ForwardingRequests << proc;
+        auto * const x11InfoRetriever = new SshX11InfoRetriever(displayName, this);
+        const auto failureHandler = [this](const QString &errorMessage) {
+            for (SshRemoteProcessPrivate * const proc : qAsConst(m_x11ForwardingRequests))
+                proc->failToStart(errorMessage);
+            m_x11ForwardingRequests.clear();
+        };
+        connect(x11InfoRetriever, &SshX11InfoRetriever::failure, this, failureHandler);
+        const auto successHandler = [this](const X11DisplayInfo &displayInfo) {
+            m_x11DisplayInfo = displayInfo;
+            for (SshRemoteProcessPrivate * const proc : qAsConst(m_x11ForwardingRequests))
+                proc->startProcess(displayInfo);
+            m_x11ForwardingRequests.clear();
+        };
+        connect(x11InfoRetriever, &SshX11InfoRetriever::success, this, successHandler);
+        qCDebug(sshLog) << "starting x11 info retriever";
+        x11InfoRetriever->start();
+    });
     return proc;
 }
 
@@ -168,19 +260,127 @@ QSsh::SftpChannel::Ptr SshChannelManager::createSftpChannel()
     return sftp;
 }
 
+SshDirectTcpIpTunnel::Ptr SshChannelManager::createDirectTunnel(const QString &originatingHost,
+        quint16 originatingPort, const QString &remoteHost, quint16 remotePort)
+{
+    SshDirectTcpIpTunnel::Ptr tunnel(new SshDirectTcpIpTunnel(m_nextLocalChannelId++,
+            originatingHost, originatingPort, remoteHost, remotePort, m_sendFacility));
+    insertChannel(tunnel->d, tunnel);
+    return tunnel;
+}
+
+SshTcpIpForwardServer::Ptr SshChannelManager::createForwardServer(const QString &remoteHost,
+        quint16 remotePort)
+{
+    SshTcpIpForwardServer::Ptr server(new SshTcpIpForwardServer(remoteHost, remotePort,
+                                                                m_sendFacility));
+    connect(server.data(), &SshTcpIpForwardServer::stateChanged,
+            this, [this, server](SshTcpIpForwardServer::State state) {
+        switch (state) {
+        case SshTcpIpForwardServer::Closing:
+            m_listeningForwardServers.removeOne(server);
+            // fall through
+        case SshTcpIpForwardServer::Initializing:
+            m_waitingForwardServers.append(server);
+            break;
+        case SshTcpIpForwardServer::Listening:
+        case SshTcpIpForwardServer::Inactive:
+            break;
+        }
+    });
+    return server;
+}
+
 void SshChannelManager::insertChannel(AbstractSshChannel *priv,
     const QSharedPointer<QObject> &pub)
 {
-    connect(priv, SIGNAL(timeout()), this, SIGNAL(timeout()));
+    connect(priv, &AbstractSshChannel::timeout, this, &SshChannelManager::timeout);
     m_channels.insert(priv->localChannelId(), priv);
     m_sessions.insert(priv, pub);
 }
 
+void SshChannelManager::handleChannelOpenForwardedTcpIp(
+        const SshChannelOpenGeneric &channelOpenGeneric)
+{
+    const SshChannelOpenForwardedTcpIp channelOpen
+            = SshIncomingPacket::extractChannelOpenForwardedTcpIp(channelOpenGeneric);
+
+    SshTcpIpForwardServer::Ptr server;
+
+    foreach (const SshTcpIpForwardServer::Ptr &candidate, m_listeningForwardServers) {
+        if (candidate->port() == channelOpen.remotePort
+                && candidate->bindAddress().toUtf8() == channelOpen.remoteAddress) {
+            server = candidate;
+            break;
+        }
+    };
+
+
+    if (server.isNull()) {
+        // Apparently the server knows a remoteAddress we are not aware of. There are plenty of ways
+        // to make that happen: /etc/hosts on the server, different writings for localhost,
+        // different DNS servers, ...
+        // Rather than trying to figure that out, we just use the first listening forwarder with the
+        // same port.
+        foreach (const SshTcpIpForwardServer::Ptr &candidate, m_listeningForwardServers) {
+            if (candidate->port() == channelOpen.remotePort) {
+                server = candidate;
+                break;
+            }
+        };
+    }
+
+    if (server.isNull()) {
+        try {
+            m_sendFacility.sendChannelOpenFailurePacket(channelOpen.common.remoteChannel,
+                                                        SSH_OPEN_ADMINISTRATIVELY_PROHIBITED,
+                                                        QByteArray());
+        }  catch (const std::exception &e) {
+            qCWarning(sshLog, "Botan error: %s", e.what());
+        }
+        return;
+    }
+
+    SshForwardedTcpIpTunnel::Ptr tunnel(new SshForwardedTcpIpTunnel(m_nextLocalChannelId++,
+                                                                    m_sendFacility));
+    tunnel->d->handleOpenSuccess(channelOpen.common.remoteChannel,
+                                 channelOpen.common.remoteWindowSize,
+                                 channelOpen.common.remoteMaxPacketSize);
+    tunnel->open(QIODevice::ReadWrite);
+    server->setNewConnection(tunnel);
+    insertChannel(tunnel->d, tunnel);
+}
+
+void SshChannelManager::handleChannelOpenX11(const SshChannelOpenGeneric &channelOpenGeneric)
+{
+    qCDebug(sshLog) << "incoming X11 channel open request";
+    const SshChannelOpenX11 channelOpen
+            = SshIncomingPacket::extractChannelOpenX11(channelOpenGeneric);
+    if (m_x11DisplayInfo.cookie.isEmpty()) {
+        throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
+                                   "Server attempted to open an unrequested X11 channel.");
+    }
+    SshX11Channel * const x11Channel = new SshX11Channel(m_x11DisplayInfo,
+                                                         m_nextLocalChannelId++,
+                                                         m_sendFacility);
+    x11Channel->setParent(this);
+    x11Channel->handleOpenSuccess(channelOpen.common.remoteChannel,
+                                  channelOpen.common.remoteWindowSize,
+                                  channelOpen.common.remoteMaxPacketSize);
+    insertChannel(x11Channel, QSharedPointer<QObject>());
+}
+
 int SshChannelManager::closeAllChannels(CloseAllMode mode)
 {
-    const int count = m_channels.count();
-    for (ChannelIterator it = m_channels.begin(); it != m_channels.end(); ++it)
-        it.value()->closeChannel();
+    int count = 0;
+    for (ChannelIterator it = m_channels.begin(); it != m_channels.end(); ++it) {
+        AbstractSshChannel * const channel = it.value();
+        QSSH_ASSERT(channel->channelState() != AbstractSshChannel::Closed);
+        if (channel->channelState() != AbstractSshChannel::CloseRequested) {
+            channel->closeChannel();
+            ++count;
+        }
+    }
     if (mode == CloseAllAndReset) {
         m_channels.clear();
         m_sessions.clear();
@@ -195,9 +395,16 @@ int SshChannelManager::channelCount() const
 
 void SshChannelManager::removeChannel(ChannelIterator it)
 {
-    Q_ASSERT(it != m_channels.end() && "Unexpected channel lookup failure.");
+    if (it == m_channels.end()) {
+        throw SshClientException(SshInternalError,
+                QLatin1String("Internal error: Unexpected channel lookup failure"));
+    }
     const int removeCount = m_sessions.remove(it.value());
-    Q_ASSERT(removeCount == 1 && "Session for channel not found.");
+    if (removeCount != 1) {
+        throw SshClientException(SshInternalError,
+                QString::fromLatin1("Internal error: Unexpected session count %1 for channel.")
+                                 .arg(removeCount));
+    }
     m_channels.erase(it);
 }
 

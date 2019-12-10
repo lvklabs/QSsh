@@ -35,6 +35,8 @@
 
 #include "sshpseudoterminal.h"
 
+#include <QStringList>
+
 namespace QSsh {
 namespace Internal {
 
@@ -48,22 +50,35 @@ public:
 
     QByteArray generateKeyExchangeInitPacket(); // Returns payload.
     void generateKeyDhInitPacket(const Botan::BigInt &e);
+    void generateKeyEcdhInitPacket(const QByteArray &clientQ);
     void generateNewKeysPacket();
     void generateDisconnectPacket(SshErrorCode reason,
         const QByteArray &reasonString);
     void generateMsgUnimplementedPacket(quint32 serverSeqNr);
     void generateUserAuthServiceRequestPacket();
-    void generateUserAuthByPwdRequestPacket(const QByteArray &user,
+    void generateUserAuthByPasswordRequestPacket(const QByteArray &user,
         const QByteArray &service, const QByteArray &pwd);
-    void generateUserAuthByKeyRequestPacket(const QByteArray &user,
+    void generateUserAuthByPublicKeyRequestPacket(const QByteArray &user,
+        const QByteArray &service, const QByteArray &key, const QByteArray &signature);
+    void generateQueryPublicKeyPacket(const QByteArray &user, const QByteArray &service,
+                                      const QByteArray &publicKey);
+    void generateUserAuthByKeyboardInteractiveRequestPacket(const QByteArray &user,
         const QByteArray &service);
+    void generateUserAuthInfoResponsePacket(const QStringList &responses);
     void generateRequestFailurePacket();
     void generateIgnorePacket();
     void generateInvalidMessagePacket();
     void generateSessionPacket(quint32 channelId, quint32 windowSize,
         quint32 maxPacketSize);
+    void generateDirectTcpIpPacket(quint32 channelId, quint32 windowSize,
+        quint32 maxPacketSize, const QByteArray &remoteHost, quint32 remotePort,
+        const QByteArray &localIpAddress, quint32 localPort);
+    void generateTcpIpForwardPacket(const QByteArray &bindAddress, quint32 bindPort);
+    void generateCancelTcpIpForwardPacket(const QByteArray &bindAddress, quint32 bindPort);
     void generateEnvPacket(quint32 remoteChannel, const QByteArray &var,
         const QByteArray &value);
+    void generateX11ForwardingPacket(quint32 remoteChannel, const QByteArray &protocol,
+                                     const QByteArray &cookie, quint32 screenNumber);
     void generatePtyRequestPacket(quint32 remoteChannel,
         const SshPseudoTerminal &terminal);
     void generateExecPacket(quint32 remoteChannel, const QByteArray &command);
@@ -76,6 +91,10 @@ public:
         const QByteArray &signalName);
     void generateChannelEofPacket(quint32 remoteChannel);
     void generateChannelClosePacket(quint32 remoteChannel);
+    void generateChannelOpenConfirmationPacket(quint32 remoteChannel, quint32 localChannel,
+        quint32 localWindowSize, quint32 maxPackeSize);
+    void generateChannelOpenFailurePacket(quint32 remoteChannel, quint32 reason,
+        const QByteArray &reasonString);
 
 private:
     virtual quint32 cipherBlockSize() const;

@@ -42,29 +42,47 @@ class SshCapabilities
 public:
     static const QByteArray DiffieHellmanGroup1Sha1;
     static const QByteArray DiffieHellmanGroup14Sha1;
+    static const QByteArray EcdhKexNamePrefix;
+    static const QByteArray EcdhNistp256;
+    static const QByteArray EcdhNistp384;
+    static const QByteArray EcdhNistp521; // sic
     static const QList<QByteArray> KeyExchangeMethods;
 
     static const QByteArray PubKeyDss;
     static const QByteArray PubKeyRsa;
+    static const QByteArray PubKeyEcdsaPrefix;
+    static const QByteArray PubKeyEcdsa256;
+    static const QByteArray PubKeyEcdsa384;
+    static const QByteArray PubKeyEcdsa521;
     static const QList<QByteArray> PublicKeyAlgorithms;
 
-    static const QByteArray CryptAlgo3Des;
-    static const QByteArray CryptAlgoAes128;
+    static const QByteArray CryptAlgo3DesCbc;
+    static const QByteArray CryptAlgo3DesCtr;
+    static const QByteArray CryptAlgoAes128Cbc;
+    static const QByteArray CryptAlgoAes128Ctr;
+    static const QByteArray CryptAlgoAes192Ctr;
+    static const QByteArray CryptAlgoAes256Ctr;
     static const QList<QByteArray> EncryptionAlgorithms;
 
     static const QByteArray HMacSha1;
     static const QByteArray HMacSha196;
+    static const QByteArray HMacSha256;
+    static const QByteArray HMacSha384;
+    static const QByteArray HMacSha512;
     static const QList<QByteArray> MacAlgorithms;
 
     static const QList<QByteArray> CompressionAlgorithms;
 
     static const QByteArray SshConnectionService;
 
-    static const QByteArray PublicKeyAuthMethod;
-    static const QByteArray PasswordAuthMethod;
-
+    static QList<QByteArray> commonCapabilities(const QList<QByteArray> &myCapabilities,
+                                                const QList<QByteArray> &serverCapabilities);
     static QByteArray findBestMatch(const QList<QByteArray> &myCapabilities,
         const QList<QByteArray> &serverCapabilities);
+
+    static int ecdsaIntegerWidthInBytes(const QByteArray &ecdsaAlgo);
+    static QByteArray ecdsaPubKeyAlgoForKeyWidth(int keyWidthInBytes);
+    static const char *oid(const QByteArray &ecdsaAlgo);
 };
 
 } // namespace Internal

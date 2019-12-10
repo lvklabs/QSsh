@@ -32,43 +32,150 @@
 #define SSHCONNECTION_H
 
 #include "ssherrors.h"
+#include "sshhostkeydatabase.h"
 
 #include "ssh_global.h"
 
 #include <QByteArray>
+#include <QFlags>
+#include <QMetaType>
 #include <QObject>
 #include <QSharedPointer>
 #include <QString>
 #include <QHostAddress>
+#include <QUrl>
 
 namespace QSsh {
 class SftpChannel;
+class SshDirectTcpIpTunnel;
 class SshRemoteProcess;
+class SshTcpIpForwardServer;
 
 namespace Internal {
 class SshConnectionPrivate;
 } // namespace Internal
 
+/*!
+ * \brief Flags that control various general behavior
+ */
+enum SshConnectionOption {
+    /// Set this to ignore the system defined proxy
+    SshIgnoreDefaultProxy = 0x1,
+
+    /// Fail instead of warn if the remote host violates the standard
+    SshEnableStrictConformanceChecks = 0x2
+};
+
+Q_DECLARE_FLAGS(SshConnectionOptions, SshConnectionOption)
+
+/*!
+ * \brief How strict to be when checking the remote key
+ */
+enum SshHostKeyCheckingMode {
+    /// Ignore the remote key
+    SshHostKeyCheckingNone,
+
+    /// Fail connection if either there is no key stored for this host or the key is not the same as earlier
+    SshHostKeyCheckingStrict,
+
+    /// Allow connecting if there is no stored key for the host, but fail if the key has changed
+    SshHostKeyCheckingAllowNoMatch,
+
+    /// Continue connection if the key doesn't match the stored key for the host
+    SshHostKeyCheckingAllowMismatch
+};
+
+/*!
+ * \brief Class to use to specify parameters used during connection.
+ */
 class QSSH_EXPORT SshConnectionParameters
 {
 public:
-    enum ProxyType { DefaultProxy, NoProxy };
-    enum AuthenticationType { AuthenticationByPassword, AuthenticationByKey };
+
+    /*!
+     * \brief What kinds of authentication to attempt
+     */
+    enum AuthenticationType {
+        AuthenticationTypePassword, ///< Only attempt to connect using the password set with setPassword().
+        AuthenticationTypePublicKey, ///< Only attempt to authenticate with public key
+
+        /// Only attempt keyboard interactive authentication.
+        /// For now this only changes what to send to the server,
+        /// we will still just try to use the password set here.
+        AuthenticationTypeKeyboardInteractive,
+
+        /// Any method using the password set with setPassword().
+        /// Some servers disable \a "password", others disable \a "keyboard-interactive"
+        AuthenticationTypeTryAllPasswordBasedMethods,
+
+        /// ssh-agent authentication only
+        AuthenticationTypeAgent,
+    };
+
     SshConnectionParameters();
 
-    QString host;
-    QString userName;
-    QString password;
+    /*!
+     * \brief Returns the hostname or IP set with setHost()
+     */
+    QString host() const { return url.host(); }
+
+    /*!
+     * \brief Returns the port set with setPort()
+     */
+    quint16 port() const { return url.port(); }
+
+    /*!
+     * \brief Returns the username set with setUsername()
+     * \return
+     */
+    QString userName() const { return url.userName(); }
+
+    /*!
+     * \brief Returns the password set with setPassword()
+     */
+    QString password() const { return url.password(); }
+
+    /*!
+     * \brief Sets the hostname or IP to connect to
+     * \param host The remote host
+     */
+    void setHost(const QString &host) { url.setHost(host); }
+
+    /*!
+     * \brief Sets the remote port to use
+     * \param port
+     */
+    void setPort(int port) { url.setPort(port); }
+
+    /*!
+     * \brief Sets the username to use
+     * \param name Username
+     */
+    void setUserName(const QString &name) { url.setUserName(name); }
+
+    /*!
+     * \brief Sets the password to attempt to use
+     * \param password
+     */
+    void setPassword(const QString &password) { url.setPassword(password); }
+
+    QUrl url;
     QString privateKeyFile;
     int timeout; // In seconds.
     AuthenticationType authenticationType;
-    quint16 port;
-    ProxyType proxyType;
+    SshConnectionOptions options;
+    SshHostKeyCheckingMode hostKeyCheckingMode;
+    SshHostKeyDatabasePtr hostKeyDatabase;
 };
 
+/// @cond
 QSSH_EXPORT bool operator==(const SshConnectionParameters &p1, const SshConnectionParameters &p2);
 QSSH_EXPORT bool operator!=(const SshConnectionParameters &p1, const SshConnectionParameters &p2);
+/// @endcond
 
+/*!
+ * \brief Network connection info.
+ */
 class QSSH_EXPORT SshConnectionInfo
 {
 public:
@@ -82,37 +189,99 @@ public:
     quint16 peerPort;
 };
 
+
+/*!
+    \class QSsh::SshConnection
+
+    \brief This class provides an SSH connection, implementing protocol version 2.0
+
+    See acquireConnection() which provides a pool mechanism for re-use.
+
+    It can spawn channels for remote execution and SFTP operations (version 3).
+    It operates asynchronously (non-blocking) and is not thread-safe.
+*/
+
 class QSSH_EXPORT SshConnection : public QObject
 {
     Q_OBJECT
 
 public:
+    /*!
+     * \brief The current state of a connection
+     */
     enum State { Unconnected, Connecting, Connected };
 
+    /*!
+     * \param serverInfo serverInfo connection parameters
+     * \param parent Parent object.
+     */
     explicit SshConnection(const SshConnectionParameters &serverInfo, QObject *parent = 0);
 
     void connectToHost();
     void disconnectFromHost();
+
+    /*!
+     * \brief Current state of this connection
+     */
     State state() const;
+
+    /*!
+     * \brief Returns the error state of the connection
+     * \returns If there is no error, returns \ref SshNoError if the connection is OK
+     */
     SshError errorState() const;
     QString errorString() const;
     SshConnectionParameters connectionParameters() const;
     SshConnectionInfo connectionInfo() const;
     ~SshConnection();
 
+    /*!
+     * \brief Use this to launch remote commands
+     * \param command The command to execute
+     */
     QSharedPointer<SshRemoteProcess> createRemoteProcess(const QByteArray &command);
+
+    /*!
+     * \brief Creates a remote interactive session with a shell
+     */
     QSharedPointer<SshRemoteProcess> createRemoteShell();
     QSharedPointer<SftpChannel> createSftpChannel();
+    QSharedPointer<SshDirectTcpIpTunnel> createDirectTunnel(const QString &originatingHost,
+            quint16 originatingPort, const QString &remoteHost, quint16 remotePort);
+    QSharedPointer<SshTcpIpForwardServer> createForwardServer(const QString &remoteHost,
+            quint16 remotePort);
 
     // -1 if an error occurred, number of channels closed otherwise.
     int closeAllChannels();
 
     int channelCount() const;
 
+    /*!
+     * \brief The X11 display name used for X11 forwarding
+     * \return The name of the X11 display set for this connection
+     */
+    QString x11DisplayName() const;
+
 signals:
+    /*!
+     * \brief Emitted when ready for use
+     */
     void connected();
+
+    /*!
+     * \brief Emitted when the connection has been closed
+     */
     void disconnected();
+
+    /*!
+     * \brief Emitted when data has been received
+     * \param message The content of the data, same as the output you would get when running \a ssh on the command line
+     */
     void dataAvailable(const QString &message);
+
+    /*!
+     * \brief Emitted when an error occured
+     */
     void error(QSsh::SshError);
 
 private:
@@ -120,5 +289,7 @@ private:
 };
 
 } // namespace QSsh
+
+Q_DECLARE_METATYPE(QSsh::SshConnectionParameters::AuthenticationType)
 
 #endif // SSHCONNECTION_H

@@ -31,6 +31,7 @@
 #include "sshsendfacility_p.h"
 
 #include "sshkeyexchange_p.h"
+#include "sshlogging_p.h"
 #include "sshoutgoingpacket_p.h"
 
 #include <QTcpSocket>
@@ -46,9 +47,7 @@ SshSendFacility::SshSendFacility(QTcpSocket *socket)
 
 void SshSendFacility::sendPacket()
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("Sending packet, client seq nr is %u", m_clientSeqNr);
-#endif
+    qCDebug(sshLog, "Sending packet, client seq nr is %u", m_clientSeqNr);
     if (m_socket->isValid()
         && m_socket->state() == QAbstractSocket::ConnectedState) {
         m_socket->write(m_outgoingPacket.rawData());
@@ -85,6 +84,12 @@ void SshSendFacility::sendKeyDhInitPacket(const Botan::BigInt &e)
     sendPacket();
 }
 
+void SshSendFacility::sendKeyEcdhInitPacket(const QByteArray &clientQ)
+{
+    m_outgoingPacket.generateKeyEcdhInitPacket(clientQ);
+    sendPacket();
+}
+
 void SshSendFacility::sendNewKeysPacket()
 {
     m_outgoingPacket.generateNewKeysPacket();
@@ -110,17 +115,37 @@ void SshSendFacility::sendUserAuthServiceRequestPacket()
     sendPacket();
 }
 
-void SshSendFacility::sendUserAuthByPwdRequestPacket(const QByteArray &user,
+void SshSendFacility::sendUserAuthByPasswordRequestPacket(const QByteArray &user,
     const QByteArray &service, const QByteArray &pwd)
 {
-    m_outgoingPacket.generateUserAuthByPwdRequestPacket(user, service, pwd);
+    m_outgoingPacket.generateUserAuthByPasswordRequestPacket(user, service, pwd);
     sendPacket();
     }
 
-void SshSendFacility::sendUserAuthByKeyRequestPacket(const QByteArray &user,
-    const QByteArray &service)
+void SshSendFacility::sendUserAuthByPublicKeyRequestPacket(const QByteArray &user,
+    const QByteArray &service, const QByteArray &key, const QByteArray &signature)
 {
-    m_outgoingPacket.generateUserAuthByKeyRequestPacket(user, service);
+    m_outgoingPacket.generateUserAuthByPublicKeyRequestPacket(user, service, key, signature);
+    sendPacket();
+}
+
+void SshSendFacility::sendQueryPublicKeyPacket(const QByteArray &user, const QByteArray &service,
+                                               const QByteArray &publicKey)
+{
+    m_outgoingPacket.generateQueryPublicKeyPacket(user, service, publicKey);
+    sendPacket();
+}
+
+void SshSendFacility::sendUserAuthByKeyboardInteractiveRequestPacket(const QByteArray &user,
+                                                                     const QByteArray &service)
+{
+    m_outgoingPacket.generateUserAuthByKeyboardInteractiveRequestPacket(user, service);
+    sendPacket();
+}
+
+void SshSendFacility::sendUserAuthInfoResponsePacket(const QStringList &responses)
+{
+    m_outgoingPacket.generateUserAuthInfoResponsePacket(responses);
     sendPacket();
 }
 
@@ -150,6 +175,27 @@ void SshSendFacility::sendSessionPacket(quint32 channelId, quint32 windowSize,
     sendPacket();
 }
 
+void SshSendFacility::sendDirectTcpIpPacket(quint32 channelId, quint32 windowSize,
+    quint32 maxPacketSize, const QByteArray &remoteHost, quint32 remotePort,
+    const QByteArray &localIpAddress, quint32 localPort)
+{
+    m_outgoingPacket.generateDirectTcpIpPacket(channelId, windowSize, maxPacketSize, remoteHost,
+            remotePort, localIpAddress, localPort);
+    sendPacket();
+}
+
+void SshSendFacility::sendTcpIpForwardPacket(const QByteArray &bindAddress, quint32 bindPort)
+{
+    m_outgoingPacket.generateTcpIpForwardPacket(bindAddress, bindPort);
+    sendPacket();
+}
+
+void SshSendFacility::sendCancelTcpIpForwardPacket(const QByteArray &bindAddress, quint32 bindPort)
+{
+    m_outgoingPacket.generateCancelTcpIpForwardPacket(bindAddress, bindPort);
+    sendPacket();
+}
+
 void SshSendFacility::sendPtyRequestPacket(quint32 remoteChannel,
     const SshPseudoTerminal &terminal)
 {
@@ -161,6 +207,13 @@ void SshSendFacility::sendEnvPacket(quint32 remoteChannel,
     const QByteArray &var, const QByteArray &value)
 {
     m_outgoingPacket.generateEnvPacket(remoteChannel, var, value);
+    sendPacket();
+}
+
+void SshSendFacility::sendX11ForwardingPacket(quint32 remoteChannel, const QByteArray &protocol,
+                                              const QByteArray &cookie, quint32 screenNumber)
+{
+    m_outgoingPacket.generateX11ForwardingPacket(remoteChannel, protocol, cookie, screenNumber);
     sendPacket();
 }
 
@@ -213,6 +266,21 @@ void SshSendFacility::sendChannelEofPacket(quint32 remoteChannel)
 void SshSendFacility::sendChannelClosePacket(quint32 remoteChannel)
 {
     m_outgoingPacket.generateChannelClosePacket(remoteChannel);
+    sendPacket();
+}
+
+void SshSendFacility::sendChannelOpenConfirmationPacket(quint32 remoteChannel, quint32 localChannel,
+    quint32 localWindowSize, quint32 maxPacketSize)
+{
+    m_outgoingPacket.generateChannelOpenConfirmationPacket(remoteChannel, localChannel,
+                                                           localWindowSize, maxPacketSize);
+    sendPacket();
+}
+
+void SshSendFacility::sendChannelOpenFailurePacket(quint32 remoteChannel, quint32 reason,
+    const QByteArray &reasonString)
+{
+    m_outgoingPacket.generateChannelOpenFailurePacket(remoteChannel, reason, reasonString);
     sendPacket();
 }
 

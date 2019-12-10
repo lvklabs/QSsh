@@ -31,6 +31,7 @@
 #include "sftpincomingpacket_p.h"
 
 #include "sshexception_p.h"
+#include "sshlogging_p.h"
 #include "sshpacketparser_p.h"
 
 namespace QSsh {
@@ -42,10 +43,8 @@ SftpIncomingPacket::SftpIncomingPacket() : m_length(0)
 
 void SftpIncomingPacket::consumeData(QByteArray &newData)
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("%s: current data size = %d, new data size = %d", Q_FUNC_INFO,
+    qCDebug(sshLog, "%s: current data size = %d, new data size = %d", Q_FUNC_INFO,
         m_data.size(), newData.size());
-#endif
 
     if (isComplete() || dataSize() + newData.size() < sizeof m_length)
         return;
@@ -88,7 +87,7 @@ quint32 SftpIncomingPacket::extractServerVersion() const
     Q_ASSERT(type() == SSH_FXP_VERSION);
     try {
         return SshPacketParser::asUint32(m_data, TypeOffset + 1);
-    } catch (SshPacketParseException &) {
+    } catch (const SshPacketParseException &) {
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Invalid SSH_FXP_VERSION packet.");
     }
@@ -104,7 +103,7 @@ SftpHandleResponse SftpIncomingPacket::asHandleResponse() const
         response.requestId = SshPacketParser::asUint32(m_data, &offset);
         response.handle = SshPacketParser::asString(m_data, &offset);
         return response;
-    } catch (SshPacketParseException &) {
+    } catch (const SshPacketParseException &) {
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Invalid SSH_FXP_HANDLE packet");
     }
@@ -122,7 +121,7 @@ SftpStatusResponse SftpIncomingPacket::asStatusResponse() const
         response.errorString = SshPacketParser::asUserString(m_data, &offset);
         response.language = SshPacketParser::asString(m_data, &offset);
         return response;
-    } catch (SshPacketParseException &) {
+    } catch (const SshPacketParseException &) {
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Invalid SSH_FXP_STATUS packet.");
     }
@@ -140,7 +139,7 @@ SftpNameResponse SftpIncomingPacket::asNameResponse() const
         for (quint32 i = 0; i < count; ++i)
             response.files << asFile(offset);
         return response;
-    } catch (SshPacketParseException &) {
+    } catch (const SshPacketParseException &) {
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Invalid SSH_FXP_NAME packet.");
     }
@@ -156,7 +155,7 @@ SftpDataResponse SftpIncomingPacket::asDataResponse() const
         response.requestId = SshPacketParser::asUint32(m_data, &offset);
         response.data = SshPacketParser::asString(m_data, &offset);
         return response;
-    } catch (SshPacketParseException &) {
+    } catch (const SshPacketParseException &) {
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Invalid SSH_FXP_DATA packet.");
     }
@@ -172,7 +171,7 @@ SftpAttrsResponse SftpIncomingPacket::asAttrsResponse() const
         response.requestId = SshPacketParser::asUint32(m_data, &offset);
         response.attrs = asFileAttributes(offset);
         return response;
-    } catch (SshPacketParseException &) {
+    } catch (const SshPacketParseException &) {
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Invalid SSH_FXP_ATTRS packet.");
     }
@@ -197,8 +196,9 @@ SftpFileAttributes SftpIncomingPacket::asFileAttributes(quint32 &offset) const
     attributes.timesPresent = flags & SSH_FILEXFER_ATTR_ACMODTIME;
     attributes.uidAndGidPresent = flags & SSH_FILEXFER_ATTR_UIDGID;
     attributes.permissionsPresent = flags & SSH_FILEXFER_ATTR_PERMISSIONS;
-    if (attributes.sizePresent)
+    if (attributes.sizePresent) {
         attributes.size = SshPacketParser::asUint64(m_data, &offset);
+    }
     if (attributes.uidAndGidPresent) {
         attributes.uid = SshPacketParser::asUint32(m_data, &offset);
         attributes.gid = SshPacketParser::asUint32(m_data, &offset);

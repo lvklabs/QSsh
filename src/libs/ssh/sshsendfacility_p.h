@@ -34,6 +34,8 @@
 #include "sshcryptofacility_p.h"
 #include "sshoutgoingpacket_p.h"
 
+#include <QStringList>
+
 QT_BEGIN_NAMESPACE
 class QTcpSocket;
 QT_END_NAMESPACE
@@ -53,26 +55,41 @@ public:
     void recreateKeys(const SshKeyExchange &keyExchange);
     void createAuthenticationKey(const QByteArray &privKeyFileContents);
 
+    QByteArray sessionId() const { return m_encrypter.sessionId(); }
+
     QByteArray sendKeyExchangeInitPacket();
     void sendKeyDhInitPacket(const Botan::BigInt &e);
+    void sendKeyEcdhInitPacket(const QByteArray &clientQ);
     void sendNewKeysPacket();
     void sendDisconnectPacket(SshErrorCode reason,
         const QByteArray &reasonString);
     void sendMsgUnimplementedPacket(quint32 serverSeqNr);
     void sendUserAuthServiceRequestPacket();
-    void sendUserAuthByPwdRequestPacket(const QByteArray &user,
+    void sendUserAuthByPasswordRequestPacket(const QByteArray &user,
         const QByteArray &service, const QByteArray &pwd);
-    void sendUserAuthByKeyRequestPacket(const QByteArray &user,
+    void sendUserAuthByPublicKeyRequestPacket(const QByteArray &user,
+        const QByteArray &service, const QByteArray &key, const QByteArray &signature);
+    void sendQueryPublicKeyPacket(const QByteArray &user, const QByteArray &service,
+                                  const QByteArray &publicKey);
+    void sendUserAuthByKeyboardInteractiveRequestPacket(const QByteArray &user,
         const QByteArray &service);
+    void sendUserAuthInfoResponsePacket(const QStringList &responses);
     void sendRequestFailurePacket();
     void sendIgnorePacket();
     void sendInvalidPacket();
     void sendSessionPacket(quint32 channelId, quint32 windowSize,
         quint32 maxPacketSize);
+    void sendDirectTcpIpPacket(quint32 channelId, quint32 windowSize, quint32 maxPacketSize,
+        const QByteArray &remoteHost, quint32 remotePort, const QByteArray &localIpAddress,
+        quint32 localPort);
+    void sendTcpIpForwardPacket(const QByteArray &bindAddress, quint32 bindPort);
+    void sendCancelTcpIpForwardPacket(const QByteArray &bindAddress, quint32 bindPort);
     void sendPtyRequestPacket(quint32 remoteChannel,
         const SshPseudoTerminal &terminal);
     void sendEnvPacket(quint32 remoteChannel, const QByteArray &var,
         const QByteArray &value);
+    void sendX11ForwardingPacket(quint32 remoteChannel, const QByteArray &protocol,
+                                 const QByteArray &cookie, quint32 screenNumber);
     void sendExecPacket(quint32 remoteChannel, const QByteArray &command);
     void sendShellPacket(quint32 remoteChannel);
     void sendSftpPacket(quint32 remoteChannel);
@@ -82,6 +99,10 @@ public:
         const QByteArray &signalName);
     void sendChannelEofPacket(quint32 remoteChannel);
     void sendChannelClosePacket(quint32 remoteChannel);
+    void sendChannelOpenConfirmationPacket(quint32 remoteChannel, quint32 localChannel,
+        quint32 localWindowSize, quint32 maxPackeSize);
+    void sendChannelOpenFailurePacket(quint32 remoteChannel, quint32 reason,
+        const QByteArray &reasonString);
     quint32 nextClientSeqNr() const { return m_clientSeqNr; }
 
 private:

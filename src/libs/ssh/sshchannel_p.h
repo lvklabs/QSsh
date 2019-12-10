@@ -34,8 +34,7 @@
 #include <QByteArray>
 #include <QObject>
 #include <QString>
-
-QT_FORWARD_DECLARE_CLASS(QTimer)
+#include <QTimer>
 
 namespace QSsh {
 namespace Internal {
@@ -53,16 +52,11 @@ public:
         Inactive, SessionRequested, SessionEstablished, CloseRequested, Closed
     };
 
-    ChannelState channelState() const { return m_state; }
-    void setChannelState(ChannelState state);
-
     quint32 localChannelId() const { return m_localChannel; }
     quint32 remoteChannel() const { return m_remoteChannel; }
 
     virtual void handleChannelSuccess() = 0;
     virtual void handleChannelFailure() = 0;
-
-    virtual void closeHook() = 0;
 
     void handleOpenSuccess(quint32 remoteChannelId, quint32 remoteWindowSize,
         quint32 remoteMaxPacketSize);
@@ -74,25 +68,33 @@ public:
     void handleChannelExtendedData(quint32 type, const QByteArray &data);
     void handleChannelRequest(const SshIncomingPacket &packet);
 
-    void requestSessionStart();
-    void sendData(const QByteArray &data);
     void closeChannel();
 
     virtual ~AbstractSshChannel();
 
     static const int ReplyTimeout = 10000; // milli seconds
+    ChannelState channelState() const { return m_state; }
 
 signals:
     void timeout();
+    void eof();
 
 protected:
     AbstractSshChannel(quint32 channelId, SshSendFacility &sendFacility);
+
+    void setChannelState(ChannelState state);
+
+    void requestSessionStart();
+    void sendData(const QByteArray &data);
+
+    static quint32 initialWindowSize();
+    static quint32 maxPacketSize();
 
     quint32 maxDataSize() const;
     void checkChannelActive();
 
     SshSendFacility &m_sendFacility;
-    QTimer * const m_timeoutTimer;
+    QTimer m_timeoutTimer;
 
 private:
     virtual void handleOpenSuccessInternal() = 0;
@@ -103,7 +105,8 @@ private:
     virtual void handleExitStatus(const SshChannelExitStatus &exitStatus) = 0;
     virtual void handleExitSignal(const SshChannelExitSignal &signal) = 0;
 
-    void setState(ChannelState newState);
+    virtual void closeHook() = 0;
+
     void flushSendBuffer();
     int handleChannelOrExtendedChannelData(const QByteArray &data);
 

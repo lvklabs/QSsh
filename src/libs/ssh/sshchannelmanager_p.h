@@ -31,20 +31,25 @@
 #ifndef SSHCHANNELLAYER_P_H
 #define SSHCHANNELLAYER_P_H
 
+#include "sshx11displayinfo_p.h"
+
 #include <QHash>
 #include <QObject>
 #include <QSharedPointer>
 
 namespace QSsh {
-
 class SftpChannel;
+class SshDirectTcpIpTunnel;
 class SshRemoteProcess;
+class SshTcpIpForwardServer;
 
 namespace Internal {
 
 class AbstractSshChannel;
+struct SshChannelOpenGeneric;
 class SshIncomingPacket;
 class SshSendFacility;
+class SshRemoteProcessPrivate;
 
 class SshChannelManager : public QObject
 {
@@ -55,10 +60,15 @@ public:
     QSharedPointer<SshRemoteProcess> createRemoteProcess(const QByteArray &command);
     QSharedPointer<SshRemoteProcess> createRemoteShell();
     QSharedPointer<SftpChannel> createSftpChannel();
-    int channelCount() const;
+    QSharedPointer<SshDirectTcpIpTunnel> createDirectTunnel(const QString &originatingHost,
+            quint16 originatingPort, const QString &remoteHost, quint16 remotePort);
+    QSharedPointer<SshTcpIpForwardServer> createForwardServer(const QString &remoteHost,
+            quint16 remotePort);
 
+    int channelCount() const;
     enum CloseAllMode { CloseAllRegular, CloseAllAndReset };
     int closeAllChannels(CloseAllMode mode);
+    QString x11DisplayName() const { return m_x11DisplayInfo.displayName; }
 
     void handleChannelRequest(const SshIncomingPacket &packet);
     void handleChannelOpen(const SshIncomingPacket &packet);
@@ -71,6 +81,8 @@ public:
     void handleChannelExtendedData(const SshIncomingPacket &packet);
     void handleChannelEof(const SshIncomingPacket &packet);
     void handleChannelClose(const SshIncomingPacket &packet);
+    void handleRequestSuccess(const SshIncomingPacket &packet);
+    void handleRequestFailure(const SshIncomingPacket &packet);
 
 signals:
     void timeout();
@@ -86,10 +98,17 @@ private:
     void insertChannel(AbstractSshChannel *priv,
         const QSharedPointer<QObject> &pub);
 
+    void handleChannelOpenForwardedTcpIp(const SshChannelOpenGeneric &channelOpenGeneric);
+    void handleChannelOpenX11(const SshChannelOpenGeneric &channelOpenGeneric);
+
     SshSendFacility &m_sendFacility;
     QHash<quint32, AbstractSshChannel *> m_channels;
     QHash<AbstractSshChannel *, QSharedPointer<QObject> > m_sessions;
     quint32 m_nextLocalChannelId;
+    QList<QSharedPointer<SshTcpIpForwardServer>> m_waitingForwardServers;
+    QList<QSharedPointer<SshTcpIpForwardServer>> m_listeningForwardServers;
+    QList<SshRemoteProcessPrivate *> m_x11ForwardingRequests;
+    X11DisplayInfo m_x11DisplayInfo;
 };
 
 } // namespace Internal
